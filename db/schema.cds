@@ -105,8 +105,9 @@ entity Reservations : cuid, managed {
     status : String(30) not null;
 
     requirementReference : String(30);
-}
 
+    transferItem : Association to TransferItems;
+}
 
 entity TransferRequests : cuid, managed {
     transferNumber : String(30) not null;
@@ -145,14 +146,19 @@ entity TransferItems : cuid, managed {
     discrepancyReason : Association to MovementReasons;
 }
 
+@assert.unique.idempotencyKey: [idempotencyKey]
 entity TransferEvents : cuid, managed {
-    transfer : Association to TransferRequests not null;
+    transfer : Association to TransferRequests;
+
+    idempotencyKey : UUID;
+    itemID         : UUID;
+    quantity       : Decimal(15,3);
 
     eventType   : String(30) not null;
     performedBy : String(100) not null;
 
-    reason      : Association to MovementReasons;
+    reason       : Association to MovementReasons;
     expectedDate : Date;
 
-    notes       : String(255);
+    notes : String(255);
 }

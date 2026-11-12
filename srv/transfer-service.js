@@ -116,53 +116,109 @@ this.on('approveTransfer', async (req) => {
 });
 
 
+this.before(['UPDATE', 'DELETE'], 'StockMovements', req => {
+    req.reject(403, 'Posted stock movements cannot be modified or deleted. Use reverseMovement instead.');
+});
 
-    this.on('reserve', async (req) => {
+   
 
-        const { transferID, itemID, performedBy } = req.data;
+this.on('reserve', async (req) => {
 
-        if (!transferID || !itemID || !performedBy) {
-            return req.error(400, 'All fields are required');
-        }
+    const { transferID, itemID, performedBy, idempotencyKey } = req.data;
 
-        const transfer = await SELECT.one
-            .from(TransferRequests)
-            .where({ ID: transferID });
+    if (!transferID || !itemID || !performedBy || !idempotencyKey) {
+        return req.error(400, 'All fields are required');
+    }
 
-        if (!transfer) {
-            return req.error(404, 'Transfer request not found');
-        }
+    const tx = cds.tx(req);
 
-        if (transfer.status !== 'APPROVED') {
-            return req.error(400, 'Only approved transfers can be reserved');
-        }
+    // 1. Lock transfer request
+    const transfer = await tx.run(
+        SELECT.one.from(TransferRequests)
+            .where({ ID: transferID })
+            .forUpdate()
+    );
 
-const existingReservation = await SELECT.one
-    .from(Reservations)
-    .where({
-        requirementReference: transfer.transferNumber
-    });
+    if (!transfer) {
+        return req.error(404, 'Transfer request not found');
+    }
 
-if (existingReservation) {
-    return req.error(400, 'Reservation already exists for this transfer');
-}
-
-        const item = await SELECT.one
-            .from(TransferItems)
+    // 2. Lock transfer item
+    const item = await tx.run(
+        SELECT.one.from(TransferItems)
             .where({
                 ID: itemID,
                 transfer_ID: transferID
-            });
+            })
+            .forUpdate()
+    );
 
-        if (!item) {
-            return req.error(404, 'Transfer item not found');
+    if (!item) {
+        return req.error(404, 'Transfer item not found');
+    }
+
+    // 3. Check idempotency event
+    const existingEvent = await tx.run(
+        SELECT.one.from(TransferEvents)
+            .where({ idempotencyKey: idempotencyKey })
+    );
+
+    if (existingEvent) {
+
+        if (
+            existingEvent.eventType !== 'STOCK_RESERVED' ||
+            existingEvent.transfer_ID !== transferID ||
+            existingEvent.itemID !== itemID ||
+            existingEvent.performedBy !== performedBy ||
+            Number(existingEvent.quantity) !== Number(item.requestedQty)
+        ) {
+            return req.error(
+                409,
+                'Idempotency key was already used for a different reservation request'
+            );
         }
 
-        if (Number(item.requestedQty) <= 0) {
-            return req.error(400, 'Requested quantity must be greater than zero');
+        // Return previously created reservations
+        const previousReservations = await tx.run(
+            SELECT.from(Reservations)
+                .where({ transferItem_ID: itemID })
+        );
+
+        if (!previousReservations || previousReservations.length === 0) {
+            return req.error(
+                409,
+                'Reservation audit exists but reservation records were not found'
+            );
         }
 
-        const stockList = await SELECT.from(StockBalances)
+        return previousReservations;
+    }
+
+    // 4. Validate transfer status for a new request
+    if (transfer.status !== 'APPROVED') {
+        return req.error(400, 'Only approved transfers can be reserved');
+    }
+
+    // 5. Check existing reservation
+    const existingReservation = await tx.run(
+        SELECT.one.from(Reservations)
+            .where({ transferItem_ID: itemID })
+    );
+
+    if (existingReservation) {
+        return req.error(
+            409,
+            'Reservation already exists for this transfer item'
+        );
+    }
+
+    if (Number(item.requestedQty) <= 0) {
+        return req.error(400, 'Requested quantity must be greater than zero');
+    }
+
+    // 6. Lock stock rows in consistent order
+    const stockList = await tx.run(
+        SELECT.from(StockBalances)
             .where({
                 material_ID: item.material_ID,
                 plant_ID: transfer.sourcePlant_ID,
@@ -170,475 +226,515 @@ if (existingReservation) {
                 batchNumber: item.batchNumber
             })
             .orderBy('storageBin_ID')
-            .forUpdate();
+            .forUpdate()
+    );
 
-        if (!stockList || stockList.length === 0) {
-            return req.error(404, 'Source stock balance not found');
+    if (!stockList || stockList.length === 0) {
+        return req.error(404, 'Source stock balance not found');
+    }
+
+    let totalAvailableQty = 0;
+
+    for (const stock of stockList) {
+
+        const availableQty = Number(stock.unrestrictedQty) -
+                             Number(stock.reservedQty);
+
+        if (availableQty > 0) {
+            totalAvailableQty += availableQty;
+        }
+    }
+
+    if (totalAvailableQty < Number(item.requestedQty)) {
+        return req.error(400, 'Insufficient available stock for reservation');
+    }
+
+    // 7. Prepare reservation records
+    let remainingQty = Number(item.requestedQty);
+    const reservationRecords = [];
+
+    for (const stock of stockList) {
+
+        const availableQty = Number(stock.unrestrictedQty) -
+                             Number(stock.reservedQty);
+
+        if (availableQty <= 0) {
+            continue;
         }
 
-        let totalAvailableQty = 0;
+        const reserveQty = Math.min(availableQty, remainingQty);
 
-        for (const stock of stockList) {
+        if (reserveQty > 0) {
 
-            const availableQty = Number(stock.unrestrictedQty) -
-                                 Number(stock.reservedQty);
+            reservationRecords.push({
+                transferItem_ID: itemID,
+                material_ID: item.material_ID,
+                plant_ID: transfer.sourcePlant_ID,
+                storageLocation_ID: transfer.sourceStorageLocation_ID,
+                storageBin_ID: stock.storageBin_ID,
+                batchNumber: item.batchNumber,
+                reservedQty: reserveQty,
+                releasedQty: 0,
+                consumedQty: 0,
+                status: 'ACTIVE',
+                requirementReference: transfer.transferNumber
+            });
 
-            if (availableQty > 0) {
-                totalAvailableQty += availableQty;
-            }
+            remainingQty = remainingQty - reserveQty;
         }
 
-        if (totalAvailableQty < Number(item.requestedQty)) {
-            return req.error(400, 'Insufficient available stock for reservation');
+        if (remainingQty <= 0) {
+            break;
         }
+    }
 
-        let remainingQty = Number(item.requestedQty);
+    if (remainingQty > 0) {
+        return req.error(400, 'Insufficient stock for reservation');
+    }
 
-        const reservationRecords = [];
+    // 8. Insert reservations and update locked stock rows
+    for (const reservation of reservationRecords) {
 
-        for (const stock of stockList) {
+        await tx.run(
+            INSERT.into(Reservations).entries(reservation)
+        );
 
-            const availableQty = Number(stock.unrestrictedQty) -
-                                 Number(stock.reservedQty);
+        const stock = stockList.find(row =>
+            row.storageBin_ID === reservation.storageBin_ID
+        );
 
-            if (availableQty <= 0) {
-                continue;
-            }
-
-            const reserveQty = Math.min(availableQty, remainingQty);
-
-            if (reserveQty > 0) {
-
-                reservationRecords.push({
-                    material_ID: item.material_ID,
-                    plant_ID: transfer.sourcePlant_ID,
-                    storageLocation_ID: transfer.sourceStorageLocation_ID,
-                    storageBin_ID: stock.storageBin_ID,
-                    batchNumber: item.batchNumber,
-                    reservedQty: reserveQty,
-                    releasedQty: 0,
-                    consumedQty: 0,
-                    status: 'ACTIVE',
-                    requirementReference: transfer.transferNumber
-                });
-
-                remainingQty = remainingQty - reserveQty;
-            }
-
-            if (remainingQty <= 0) {
-                break;
-            }
-        }
-
-        if (remainingQty > 0) {
-            return req.error(400, 'Insufficient stock for reservation');
-        }
-
-        for (const reservation of reservationRecords) {
-
-            await INSERT.into(Reservations).entries(reservation);
-
-            const stock = await SELECT.one
-                .from(StockBalances)
-                .where({
-                    material_ID: reservation.material_ID,
-                    plant_ID: reservation.plant_ID,
-                    storageLocation_ID: reservation.storageLocation_ID,
-                    storageBin_ID: reservation.storageBin_ID,
-                    batchNumber: reservation.batchNumber
-                });
-
-            await UPDATE(StockBalances)
+        await tx.run(
+            UPDATE(StockBalances)
                 .set({
                     reservedQty: Number(stock.reservedQty) +
                                  Number(reservation.reservedQty)
                 })
-                .where({
-                    ID: stock.ID
-                });
-        }
+                .where({ ID: stock.ID })
+        );
+    }
 
-        await INSERT.into(TransferEvents).entries({
+    // 9. Create idempotency audit event
+    await tx.run(
+        INSERT.into(TransferEvents).entries({
             transfer_ID: transferID,
+            idempotencyKey: idempotencyKey,
+            itemID: itemID,
+            quantity: Number(item.requestedQty),
             eventType: 'STOCK_RESERVED',
             performedBy: performedBy,
             notes: 'Stock reserved successfully'
-        });
+        })
+    );
 
-       return await SELECT.from(Reservations).where({
-    requirementReference: transfer.transferNumber
+    // 10. Return reservations
+    return await tx.run(
+        SELECT.from(Reservations)
+            .where({ transferItem_ID: itemID })
+    );
+
 });
 
-    });
 
 
     
 this.on('startPicking', async (req) => {
 
-    const {
-        transferID,
-        performedBy
-    } = req.data;
-
-    // 1. Validate input
+    const { transferID, performedBy } = req.data;
 
     if (!transferID || !performedBy || !performedBy.trim()) {
-        return req.error(400, 'All fields are required');
+        return req.reject(400, 'All fields are required');
     }
 
-    // 2. Find transfer request
+    const tx = cds.tx(req);
 
-    const transfer = await SELECT.one
-        .from(TransferRequests)
-        .where({
-            ID: transferID
-        });
+    const transfer = await tx.run(
+        SELECT.one.from(TransferRequests).where({ ID: transferID })
+    );
 
     if (!transfer) {
-        return req.error(404, 'Transfer request not found');
+        return req.reject(404, 'Transfer does not exist');
     }
-
-    // 3. Validate transfer status
 
     if (transfer.status !== 'APPROVED') {
-        return req.error(400, 'Only approved transfers can start picking');
+        return req.reject(400, 'Transfer must be APPROVED before picking');
     }
 
-    // 4. Find transfer items
+    const items = await tx.run(
+        SELECT.from(TransferItems).where({ transfer_ID: transferID })
+    );
 
-    const items = await SELECT.from(TransferItems)
-        .where({
-            transfer_ID: transferID
-        });
-
-    if (!items || items.length === 0) {
-        return req.error(400, 'Transfer must contain at least one item');
+    if (items.length === 0) {
+        return req.reject(400, 'Transfer has no items');
     }
-
-    // 5. Validate reservations for every transfer item
 
     for (const item of items) {
 
-        const reservations = await SELECT.from(Reservations)
-            .where({
-                requirementReference: transfer.transferNumber,
-                material_ID: item.material_ID,
-                plant_ID: transfer.sourcePlant_ID,
-                storageLocation_ID: transfer.sourceStorageLocation_ID,
-                batchNumber: item.batchNumber
-            });
+        const reservations = await tx.run(
+            SELECT.from(Reservations).where({
+                transferItem_ID: item.ID,
+                status: { in: ['ACTIVE', 'PARTIALLY_RELEASED'] }
+            })
+        );
 
-        if (!reservations || reservations.length === 0) {
-            return req.error(400, 'Reservation not found for transfer item');
-        }
-
-        let availableReservedQty = 0;
+        let totalReserved = 0;
 
         for (const reservation of reservations) {
-
-            if (
-                reservation.status === 'ACTIVE' ||
-                reservation.status === 'PARTIALLY_RELEASED'
-            ) {
-
-                const remainingQty =
-                    Number(reservation.reservedQty) -
-                    Number(reservation.releasedQty) -
-                    Number(reservation.consumedQty);
-
-                if (remainingQty > 0) {
-                    availableReservedQty += remainingQty;
-                }
-            }
+            totalReserved +=
+                Number(reservation.reservedQty) -
+                Number(reservation.releasedQty) -
+                Number(reservation.consumedQty);
         }
 
-        if (availableReservedQty < Number(item.requestedQty)) {
-            return req.error(
+        if (totalReserved < Number(item.requestedQty)) {
+            return req.reject(
                 400,
-                'Insufficient active reserved quantity for transfer item'
+                'Insufficient active reservation for material ' + item.material_ID
             );
         }
     }
 
-    // 6. Update transfer status to PICKING
+    await tx.run(
+        UPDATE(TransferRequests)
+            .set({ status: 'PICKING' })
+            .where({ ID: transferID })
+    );
 
-    await UPDATE(TransferRequests)
-        .set({
-            status: 'PICKING'
+    await tx.run(
+        INSERT.into(TransferEvents).entries({
+            transfer_ID: transferID,
+            eventType: 'PICKING_STARTED',
+            performedBy: performedBy,
+            notes: 'Picking started'
         })
-        .where({
-            ID: transferID
-        });
+    );
 
-    // 7. Create transfer event
-
-    await INSERT.into(TransferEvents).entries({
-        transfer_ID: transferID,
-        eventType: 'PICKING_STARTED',
-        performedBy: performedBy,
-        notes: 'Warehouse picking started successfully'
-    });
-
-    // 8. Return updated transfer
-
-    return await SELECT.one
-        .from(TransferRequests)
-        .where({
-            ID: transferID
-        });
-
+    return {
+        message: 'Picking started successfully'
+    };
 });
+
+
 
 
 
 this.on('dispatchTransfer', async (req) => {
 
     const {
-        transferID, itemID, quantity, performedBy, reason, expectedDate
+        transferID,
+        itemID,
+        quantity,
+        performedBy,
+        reason,
+        expectedDate,
+        idempotencyKey
     } = req.data;
 
-    // 1. Validate input
     if (!transferID || !itemID || !performedBy || !performedBy.trim()) {
-        return req.reject(400, 'Transfer ID, Item ID and Performed By are required');
+        return req.reject(400, 'Required fields are missing');
     }
 
-    if (quantity === undefined || quantity === null ||
-        !Number.isFinite(Number(quantity)) || Number(quantity) <= 0) {
+    if (!idempotencyKey) {
+        return req.reject(400, 'Idempotency key is required');
+    }
+
+    const dispatchQty = Number(quantity);
+
+    if (!Number.isFinite(dispatchQty) || dispatchQty <= 0) {
         return req.reject(400, 'Dispatch quantity must be greater than zero');
     }
 
     const tx = cds.tx(req);
-    const qty = Number(quantity);
 
-    // 2. Get transfer and item
     const transfer = await tx.run(
-        SELECT.one.from(TransferRequests).where({ ID: transferID })
-    );
-
-    if (!transfer) {
-        return req.reject(404, 'Transfer request not found');
-    }
-
-    if (transfer.status !== 'PICKING') {
-        return req.reject(400, 'Transfer must be in PICKING status');
-    }
-
-    const item = await tx.run(
-        SELECT.one.from(TransferItems).where({
-            ID: itemID,
-            transfer_ID: transferID
-        })
-    );
-
-    if (!item) {
-        return req.reject(404, 'Transfer item not found');
-    }
-
-    const remainingQty = Number(item.requestedQty) -
-        Number(item.dispatchedQty);
-
-    if (remainingQty <= 0 || qty > remainingQty) {
-        return req.reject(400, 'Dispatch quantity exceeds remaining quantity');
-    }
-
-    if (qty < remainingQty && (!reason || !reason.trim() || !expectedDate)) {
-        return req.reject(400, 'Reason and expected date are required for partial dispatch');
-    }
-
-    // 3. Get eligible reservations for this item
-    const reservations = await tx.run(
-        SELECT.from(Reservations)
-            .where({
-                requirementReference: transfer.transferNumber,
-                material_ID: item.material_ID,
-                plant_ID: transfer.sourcePlant_ID,
-                storageLocation_ID: transfer.sourceStorageLocation_ID,
-                batchNumber: item.batchNumber,
-                status: { in: ['ACTIVE', 'PARTIALLY_RELEASED'] }
-            })
+        SELECT.one.from(TransferRequests)
+            .where({ ID: transferID })
             .forUpdate()
     );
 
-    if (!reservations.length) {
-        return req.reject(400, 'No active reservation found');
+    if (!transfer) {
+        return req.reject(404, 'Transfer does not exist');
     }
 
-    // 4. Allocate dispatch quantity
-    let pendingQty = qty;
+    // Check whether this dispatch request was already processed
+    const existingEvent = await tx.run(
+    SELECT.one.from(TransferEvents)
+        .where({ idempotencyKey: idempotencyKey })
+);
+
+    if (existingEvent) {
+
+        if (
+            existingEvent.transfer_ID !== transferID ||
+             existingEvent.itemID !== itemID ||
+    Number(existingEvent.quantity) !== dispatchQty ||
+            existingEvent.eventType !== 'TRANSFER_DISPATCHED'
+        ) {
+            return req.reject(
+                409,
+                'Idempotency key has already been used for another request'
+            );
+        }
+
+        const existingItem = await tx.run(
+            SELECT.one.from(TransferItems)
+                .where({
+                    ID: itemID,
+                    transfer_ID: transferID
+                })
+        );
+
+        if (!existingItem) {
+            return req.reject(404, 'Transfer item does not exist');
+        }
+
+        return {
+            message: 'Dispatch request was already processed',
+            dispatchedQty: dispatchQty,
+            totalDispatchedQty: Number(existingItem.dispatchedQty || 0),
+            status: transfer.status
+        };
+    }
+
+    if (
+        transfer.status !== 'PICKING' &&
+        transfer.status !== 'PARTIALLY_RECEIVED'
+    ) {
+        return req.reject(
+            400,
+            'Transfer must be in PICKING or PARTIALLY_RECEIVED status'
+        );
+    }
+
+    const item = await tx.run(
+        SELECT.one.from(TransferItems)
+            .where({ ID: itemID, transfer_ID: transferID })
+            .forUpdate()
+    );
+
+    if (!item) {
+        return req.reject(404, 'Transfer item does not exist');
+    }
+
+    const requestedQty = Number(item.requestedQty);
+    const alreadyDispatched = Number(item.dispatchedQty || 0);
+    const remainingQty = requestedQty - alreadyDispatched;
+
+    if (dispatchQty > remainingQty) {
+        return req.reject(400, 'Dispatch quantity exceeds remaining quantity');
+    }
+
+    if (dispatchQty < remainingQty && (!reason || !expectedDate)) {
+        return req.reject(
+            400,
+            'Reason and expected date are required for partial dispatch'
+        );
+    }
+
+    const reservations = await tx.run(
+        SELECT.from(Reservations)
+            .where({
+                transferItem_ID: itemID,
+                status: { in: ['ACTIVE', 'PARTIALLY_RELEASED'] }
+            })
+            .orderBy('storageBin_ID')
+            .forUpdate()
+    );
+
+    let remainingDispatchQty = dispatchQty;
     const allocations = [];
-    const stockTotals = {};
 
     for (const reservation of reservations) {
 
-        if (pendingQty <= 0) break;
+        if (remainingDispatchQty <= 0) {
+            break;
+        }
 
-        const availableQty = Number(reservation.reservedQty) -
+        const availableReservation =
+            Number(reservation.reservedQty) -
             Number(reservation.releasedQty) -
             Number(reservation.consumedQty);
 
-        if (availableQty <= 0) continue;
-
-        const allocatedQty = Math.min(availableQty, pendingQty);
-
-        const stock = await tx.run(
-            SELECT.one.from(StockBalances).where({
-                material_ID: reservation.material_ID,
-                plant_ID: reservation.plant_ID,
-                storageLocation_ID: reservation.storageLocation_ID,
-                storageBin_ID: reservation.storageBin_ID,
-                batchNumber: reservation.batchNumber
-            }).forUpdate()
-        );
-
-        if (!stock || Number(stock.reservedQty) < allocatedQty ||
-            Number(stock.unrestrictedQty) < allocatedQty) {
-            return req.reject(400, 'Insufficient source stock in storage bin');
+        if (availableReservation <= 0) {
+            continue;
         }
 
-        allocations.push({ reservation, stock, allocatedQty });
+        const allocateQty = Math.min(
+            availableReservation,
+            remainingDispatchQty
+        );
 
-        stockTotals[stock.ID] =
-            (stockTotals[stock.ID] || 0) + allocatedQty;
+        const stock = await tx.run(
+            SELECT.one.from(StockBalances)
+                .where({
+                    material_ID: reservation.material_ID,
+                    plant_ID: reservation.plant_ID,
+                    storageLocation_ID: reservation.storageLocation_ID,
+                    storageBin_ID: reservation.storageBin_ID,
+                    batchNumber: reservation.batchNumber
+                })
+                .forUpdate()
+        );
 
-        pendingQty -= allocatedQty;
-    }
+        if (!stock) {
+            return req.reject(
+                404,
+                'Corresponding source stock balance does not exist'
+            );
+        }
 
-    if (pendingQty > 0) {
-        return req.reject(400, 'Insufficient reserved quantity for dispatch');
-    }
+        const stockUnrestrictedQty = Number(stock.unrestrictedQty);
+        const stockReservedQty = Number(stock.reservedQty);
 
-    // 5. Update stock balances
- // 5. Update stock balances
-for (const stockID in stockTotals) {
+        if (
+            stockUnrestrictedQty < allocateQty ||
+            stockReservedQty < allocateQty
+        ) {
+            return req.reject(400, 'Insufficient source stock for dispatch');
+        }
 
-    const dispatchedQty = stockTotals[stockID];
+        await tx.run(
+            UPDATE(StockBalances)
+                .set({
+                    unrestrictedQty: stockUnrestrictedQty - allocateQty,
+                    reservedQty: stockReservedQty - allocateQty
+                })
+                .where({ ID: stock.ID })
+        );
 
-    await tx.run(
-        UPDATE('interplant.StockBalances')
-            .set({
-                unrestrictedQty: { '-=': dispatchedQty },
-                reservedQty: { '-=': dispatchedQty }
-            })
-            .where({ ID: stockID })
-    );
-}
+        const newConsumedQty =
+            Number(reservation.consumedQty) + allocateQty;
 
-    // 6. Update reservations
-    for (const allocation of allocations) {
+        let newReservationStatus = 'PARTIALLY_RELEASED';
 
-        const reservation = allocation.reservation;
-        const consumedQty = Number(reservation.consumedQty) +
-            allocation.allocatedQty;
-
-        const releasedQty = Number(reservation.releasedQty);
-        const reservedQty = Number(reservation.reservedQty);
-
-        let status = 'ACTIVE';
-
-        if (consumedQty >= reservedQty) {
-            status = 'CONSUMED';
-        } else if (consumedQty + releasedQty >= reservedQty) {
-            status = 'RELEASED';
-        } else if (releasedQty > 0) {
-            status = 'PARTIALLY_RELEASED';
+        if (
+            newConsumedQty + Number(reservation.releasedQty) >=
+            Number(reservation.reservedQty)
+        ) {
+            newReservationStatus = 'CONSUMED';
+        } else if (newConsumedQty > 0) {
+            newReservationStatus = 'PARTIALLY_RELEASED';
         }
 
         await tx.run(
             UPDATE(Reservations)
                 .set({
-                    consumedQty: consumedQty,
-                    status: status
+                    consumedQty: newConsumedQty,
+                    status: newReservationStatus
                 })
                 .where({ ID: reservation.ID })
         );
+
+        allocations.push({
+            reservation: reservation,
+            quantity: allocateQty
+        });
+
+        remainingDispatchQty -= allocateQty;
     }
 
-    // 7. Update transfer item
-  // 7. Update transfer item
-
-await tx.run(
-    UPDATE(TransferItems)
-        .set({
-            dispatchedQty: { '+=': qty }
-        })
-        .where({
-            ID: itemID,
-            transfer_ID: transferID
-        })
-);
-
-const updatedItem = await tx.run(
-    SELECT.one.from(TransferItems)
-        .where({
-            ID: itemID,
-            transfer_ID: transferID
-        })
-);
-
-  // 8. Update transfer status
-
-const allItems = await tx.run(
-    SELECT.from(TransferItems)
-        .where({ transfer_ID: transferID })
-);
-
-let allDispatched = true;
-
-for (const transferItem of allItems) {
-
-    const dispatched = Number(transferItem.dispatchedQty);
-
-    if (dispatched < Number(transferItem.requestedQty)) {
-        allDispatched = false;
-        break;
+    if (remainingDispatchQty > 0) {
+        return req.reject(400, 'Insufficient reserved quantity for dispatch');
     }
-}
 
-await tx.run(
-    UPDATE(TransferRequests)
-        .set({
-            status: allDispatched ? 'DISPATCHED' : 'PICKING'
-        })
-        .where({ ID: transferID })
-);
-
-    // 9. Create stock movement records
-   // 9. Create stock movement records
-for (const allocation of allocations) {
-
-    const reservation = allocation.reservation;
+    const newDispatchedQty = alreadyDispatched + dispatchQty;
 
     await tx.run(
-        INSERT.into(StockMovements).entries({
-            material_ID: reservation.material_ID,
-            plant_ID: reservation.plant_ID,
-            storageLocation_ID: reservation.storageLocation_ID,
-            storageBin_ID: reservation.storageBin_ID,
-            batchNumber: reservation.batchNumber,
-            movementType: 'TRANSFER_DISPATCH',
-            stockCategory: 'UNRESTRICTED',
-            quantity: allocation.allocatedQty,
-            referenceNumber: transfer.transferNumber
+        UPDATE(TransferItems)
+            .set({ dispatchedQty: newDispatchedQty })
+            .where({ ID: itemID })
+    );
+
+    for (const allocation of allocations) {
+
+        await tx.run(
+            INSERT.into(StockMovements).entries({
+                material_ID: allocation.reservation.material_ID,
+                plant_ID: allocation.reservation.plant_ID,
+                storageLocation_ID: allocation.reservation.storageLocation_ID,
+                storageBin_ID: allocation.reservation.storageBin_ID,
+                batchNumber: allocation.reservation.batchNumber,
+                movementType: 'TRANSFER_DISPATCH',
+                stockCategory: 'UNRESTRICTED',
+                quantity: allocation.quantity,
+                referenceNumber: transfer.transferNumber
+            })
+        );
+    }
+
+    // Update transfer status
+
+    const allItems = await tx.run(
+        SELECT.from(TransferItems)
+            .where({ transfer_ID: transferID })
+    );
+
+    let allDispatched = true;
+    let allReceived = true;
+    let anyReceived = false;
+
+    for (const transferItem of allItems) {
+
+        const requested = Number(transferItem.requestedQty);
+        const dispatched = Number(transferItem.dispatchedQty || 0);
+
+        const received = Number(transferItem.receivedQty || 0);
+        const damaged = Number(transferItem.damagedQty || 0);
+
+        const accountedQty = received + damaged;
+
+        if (dispatched < requested) {
+            allDispatched = false;
+        }
+
+        if (accountedQty < requested) {
+            allReceived = false;
+        }
+
+        if (accountedQty > 0) {
+            anyReceived = true;
+        }
+    }
+
+    let newStatus = 'PICKING';
+
+    if (allDispatched && allReceived) {
+        newStatus = 'RECEIVED';
+    } else if (anyReceived) {
+        newStatus = 'PARTIALLY_RECEIVED';
+    } else if (allDispatched) {
+        newStatus = 'DISPATCHED';
+    }
+
+    await tx.run(
+        UPDATE(TransferRequests)
+            .set({ status: newStatus })
+            .where({ ID: transferID })
+    );
+   console.log('Dispatch idempotency key:', idempotencyKey);
+    await tx.run(
+        INSERT.into(TransferEvents).entries({
+            idempotencyKey: idempotencyKey,
+            transfer_ID: transferID,
+              itemID: itemID,
+        quantity: dispatchQty,
+            eventType: 'TRANSFER_DISPATCHED',
+            performedBy: performedBy,
+            expectedDate: expectedDate || null,
+            notes: reason
+                ? 'Dispatched quantity: ' + dispatchQty +
+                  '. Partial dispatch reason: ' + reason
+                : 'Dispatched quantity: ' + dispatchQty
         })
     );
-}
+ 
+    console.log('Dispatch event inserted with ID:', idempotencyKey);
 
-    // 10. Create audit event
-  await tx.run(
-    INSERT.into(TransferEvents).entries({
-        transfer_ID: transferID,
-        eventType: 'TRANSFER_DISPATCHED',
-        performedBy: performedBy,
-        expectedDate: expectedDate,
-        notes: `Item ${itemID}: dispatched ${quantity}. ${reason}`
-    })
-);
-
-    // 11. Return updated transfer
-    return await tx.run(
-        SELECT.one.from(TransferRequests).where({ ID: transferID })
-    );
-
+    return {
+        message: 'Transfer quantity dispatched successfully',
+        dispatchedQty: dispatchQty,
+        totalDispatchedQty: newDispatchedQty,
+        status: newStatus
+    };
 });
 
 
@@ -655,7 +751,8 @@ this.on('receiveTransfer', async (req) => {
         damagedQty,
         destinationStorageBinID,
         discrepancyReasonID,
-        performedBy
+        performedBy,
+        idempotencyKey
     } = req.data;
 
     const tx = cds.tx(req);
@@ -663,10 +760,11 @@ this.on('receiveTransfer', async (req) => {
     // 1. Validate input
 
     if (!transferID || !itemID || !performedBy ||
-        !performedBy.trim() || !destinationStorageBinID) {
+        !performedBy.trim() || !destinationStorageBinID ||
+        !idempotencyKey) {
         return req.reject(
             400,
-            'Transfer, item, destination bin and performedBy are required'
+            'Transfer, item, destination bin, performedBy and idempotencyKey are required'
         );
     }
 
@@ -692,7 +790,9 @@ this.on('receiveTransfer', async (req) => {
         );
     }
 
-    // 2. Find transfer
+    const receivingQty = good + damaged;
+
+    // 2. Find transfer and lock it
 
     const transfer = await tx.run(
         SELECT.one.from(TransferRequests)
@@ -704,6 +804,42 @@ this.on('receiveTransfer', async (req) => {
         return req.reject(404, 'Transfer request not found');
     }
 
+    // 3. Check idempotency key
+
+    const existingEvent = await tx.run(
+        SELECT.one.from(TransferEvents)
+            .where({ idempotencyKey: idempotencyKey })
+    );
+
+    if (existingEvent) {
+
+        const expectedNotes =
+            'Good quantity: ' + good +
+            ', Damaged quantity: ' + damaged +
+            ', Destination bin: ' + destinationStorageBinID +
+            ', Discrepancy reason: ' + (discrepancyReasonID || '');
+
+        if (
+            existingEvent.transfer_ID !== transferID ||
+            existingEvent.itemID !== itemID ||
+            Number(existingEvent.quantity) !== receivingQty ||
+            existingEvent.eventType !== 'TRANSFER_RECEIVED' ||
+            existingEvent.notes !== expectedNotes
+        ) {
+            return req.reject(
+                409,
+                'Idempotency key has already been used for another request'
+            );
+        }
+
+        return await tx.run(
+            SELECT.one.from(TransferRequests)
+                .where({ ID: transferID })
+        );
+    }
+
+    // 4. Validate transfer status
+
     if (
         transfer.status !== 'PICKING' &&
         transfer.status !== 'DISPATCHED' &&
@@ -712,7 +848,7 @@ this.on('receiveTransfer', async (req) => {
         return req.reject(400, 'Transfer is not available for receiving');
     }
 
-    // 3. Find transfer item
+    // 5. Find transfer item
 
     const item = await tx.run(
         SELECT.one.from(TransferItems)
@@ -727,7 +863,7 @@ this.on('receiveTransfer', async (req) => {
         return req.reject(404, 'Transfer item not found');
     }
 
-    // 4. Validate remaining dispatched quantity
+    // 6. Validate remaining dispatched quantity
 
     const dispatched = Number(item.dispatchedQty || 0);
     const alreadyReceived = Number(item.receivedQty || 0);
@@ -735,7 +871,6 @@ this.on('receiveTransfer', async (req) => {
 
     const alreadyAccounted = alreadyReceived + alreadyDamaged;
     const remainingQty = dispatched - alreadyAccounted;
-    const receivingQty = good + damaged;
 
     if (remainingQty <= 0) {
         return req.reject(
@@ -751,21 +886,21 @@ this.on('receiveTransfer', async (req) => {
         );
     }
 
-    // 5. Validate destination storage bin
+    // 7. Validate destination storage bin
 
     const destinationBin = await tx.run(
         SELECT.one.from('interplant.StorageBins')
             .where({
                 ID: destinationStorageBinID,
                 storageLocation_ID: transfer.destinationStorageLocation_ID
-            })
+            }).forUpdate()
     );
 
     if (!destinationBin) {
         return req.reject(400, 'Invalid destination storage bin');
     }
 
-    // 6. Validate discrepancy reason
+    // 8. Validate discrepancy reason
 
     if (damaged > 0) {
 
@@ -777,10 +912,9 @@ this.on('receiveTransfer', async (req) => {
         if (!reason) {
             return req.reject(400, 'Invalid discrepancy reason');
         }
-
     }
 
-    // 7. Find destination stock balance
+    // 9. Find destination stock balance
 
     const stock = await tx.run(
         SELECT.one.from('interplant.StockBalances')
@@ -794,7 +928,7 @@ this.on('receiveTransfer', async (req) => {
             .forUpdate()
     );
 
-    // 8. Update or create destination stock
+    // 10. Update or create destination stock
 
     if (stock) {
 
@@ -822,51 +956,48 @@ this.on('receiveTransfer', async (req) => {
                 blockedQty: damaged
             })
         );
-
     }
 
-   // 9. Create good quantity stock movement
+    // 11. Create good quantity stock movement
 
-if (good > 0) {
+    if (good > 0) {
 
-    await tx.run(
-        INSERT.into('interplant.StockMovements').entries({
-            material_ID: item.material_ID,
-            plant_ID: transfer.destinationPlant_ID,
-            storageLocation_ID: transfer.destinationStorageLocation_ID,
-            storageBin_ID: destinationStorageBinID,
-            batchNumber: item.batchNumber,
-            movementType: 'TRANSFER_RECEIPT',
-            stockCategory: 'UNRESTRICTED',
-            quantity: good,
-            referenceNumber: transfer.transferNumber
-        })
-    );
+        await tx.run(
+            INSERT.into('interplant.StockMovements').entries({
+                material_ID: item.material_ID,
+                plant_ID: transfer.destinationPlant_ID,
+                storageLocation_ID: transfer.destinationStorageLocation_ID,
+                storageBin_ID: destinationStorageBinID,
+                batchNumber: item.batchNumber,
+                movementType: 'TRANSFER_RECEIPT',
+                stockCategory: 'UNRESTRICTED',
+                quantity: good,
+                referenceNumber: transfer.transferNumber
+            })
+        );
+    }
 
-}
+    // 12. Create damaged quantity stock movement
 
-// 10. Create damaged quantity stock movement
+    if (damaged > 0) {
 
-if (damaged > 0) {
+        await tx.run(
+            INSERT.into('interplant.StockMovements').entries({
+                material_ID: item.material_ID,
+                plant_ID: transfer.destinationPlant_ID,
+                storageLocation_ID: transfer.destinationStorageLocation_ID,
+                storageBin_ID: destinationStorageBinID,
+                batchNumber: item.batchNumber,
+                movementType: 'TRANSFER_RECEIPT',
+                stockCategory: 'BLOCKED',
+                quantity: damaged,
+                movementReason_ID: discrepancyReasonID,
+                referenceNumber: transfer.transferNumber
+            })
+        );
+    }
 
-    await tx.run(
-        INSERT.into('interplant.StockMovements').entries({
-            material_ID: item.material_ID,
-            plant_ID: transfer.destinationPlant_ID,
-            storageLocation_ID: transfer.destinationStorageLocation_ID,
-            storageBin_ID: destinationStorageBinID,
-            batchNumber: item.batchNumber,
-            movementType: 'TRANSFER_RECEIPT',
-            stockCategory: 'BLOCKED',
-            quantity: damaged,
-            movementReason_ID: discrepancyReasonID,
-            referenceNumber: transfer.transferNumber
-        })
-    );
-
-}
-
-    // 11. Update transfer item
+    // 13. Update transfer item
 
     const updatedReceivedQty = alreadyReceived + good;
     const updatedDamagedQty = alreadyDamaged + damaged;
@@ -886,7 +1017,7 @@ if (damaged > 0) {
             .where({ ID: itemID })
     );
 
-    // 12. Check all transfer items
+    // 14. Check all transfer items
 
     const items = await tx.run(
         SELECT.from(TransferItems)
@@ -908,10 +1039,9 @@ if (damaged > 0) {
             fullyReceived = false;
             break;
         }
-
     }
 
-    // 13. Update transfer status
+    // 15. Update transfer status
 
     await tx.run(
         UPDATE(TransferRequests)
@@ -921,22 +1051,28 @@ if (damaged > 0) {
             .where({ ID: transferID })
     );
 
-    // 14. Create transfer audit event
+    // 16. Create transfer audit event
+
+    const eventNotes =
+        'Good quantity: ' + good +
+        ', Damaged quantity: ' + damaged +
+        ', Destination bin: ' + destinationStorageBinID +
+        ', Discrepancy reason: ' + (discrepancyReasonID || '');
 
     await tx.run(
         INSERT.into(TransferEvents).entries({
             transfer_ID: transferID,
+            idempotencyKey: idempotencyKey,
+            itemID: itemID,
+            quantity: receivingQty,
             eventType: 'TRANSFER_RECEIVED',
             performedBy: performedBy,
             reason_ID: damaged > 0 ? discrepancyReasonID : null,
-            notes:
-                `Good quantity: ${good}, ` +
-                `Damaged quantity: ${damaged}, ` +
-                `Destination bin: ${destinationStorageBinID}`
+            notes: eventNotes
         })
     );
 
-    // 15. Return updated transfer
+    // 17. Return updated transfer
 
     return await tx.run(
         SELECT.one.from(TransferRequests)
@@ -944,6 +1080,7 @@ if (damaged > 0) {
     );
 
 });
+
 
 
 
@@ -1017,7 +1154,6 @@ this.on("rejectTransfer", async (req) => {
 console.log('Registering closeTransfer handler');
 
 
-
 this.on('closeTransfer', async (req) => {
     const { transferID, performedBy } = req.data;
 
@@ -1088,6 +1224,10 @@ this.on('closeTransfer', async (req) => {
         return req.reject(500, error.message);
     }
 });
+
+
+  
+
 
 
 

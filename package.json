@@ -22,9 +22,12 @@
   },
   "private": true,
   "cds": {
+    "server":{
+      "index": true
+    },
     "requires": {
       "[production]": {
-        "auth": "xsuaa"
+        "auth": "dummy"
       }
     }
   }
