@@ -73,249 +73,11 @@ this.before(['UPDATE', 'DELETE'], 'StockMovements', req => {
 });
 
 
-this.on('adjustStock', async (req) => {
 
-    console.log('ADJUSTSTOCK HANDLER - UPDATED VERSION');
 
-    const {
-        stockBalanceID,
-        stockCategory,
-        adjustmentType,
-        quantity,
-        movementReasonID,
-        performedBy,
-        referenceNumber,
-        idempotencyKey
-    } = req.data;
 
-    const tx = cds.tx(req);
 
-    if (
-        !stockBalanceID ||
-        !stockCategory ||
-        !adjustmentType ||
-        quantity === undefined ||
-        quantity === null ||
-        !movementReasonID ||
-        !performedBy ||
-        !performedBy.trim() ||
-        !idempotencyKey
-    ) {
-        return req.reject(400, 'All required fields must be provided');
-    }
 
-    const adjustmentQty = Number(quantity);
-
-    if (!Number.isFinite(adjustmentQty) || adjustmentQty <= 0) {
-        return req.reject(400, 'Adjustment quantity must be greater than zero');
-    }
-
-    const categoryFields = {
-        UNRESTRICTED: 'unrestrictedQty',
-        QUALITY: 'qualityQty',
-        BLOCKED: 'blockedQty'
-    };
-
-    const stockField = categoryFields[stockCategory];
-
-    if (!stockField) {
-        return req.reject(
-            400,
-            'Only UNRESTRICTED, QUALITY and BLOCKED stock can be adjusted'
-        );
-    }
-
-    if (
-        adjustmentType !== 'INCREASE' &&
-        adjustmentType !== 'DECREASE'
-    ) {
-        return req.reject(400, 'Adjustment type must be INCREASE or DECREASE');
-    }
-
-    const expectedNotes =
-        'Stock Balance ID: ' + stockBalanceID +
-        ', Category: ' + stockCategory +
-        ', Adjustment Type: ' + adjustmentType +
-        ', Reason ID: ' + movementReasonID +
-        ', Reference Number: ' + (referenceNumber || '');
-
-    const existingEvent = await tx.run(
-        SELECT.one.from(TransferEvents)
-            .where({ idempotencyKey: idempotencyKey })
-    );
-
-    if (existingEvent) {
-
-        const movementIDPrefix = expectedNotes + ', Movement ID: ';
-
-        if (
-            existingEvent.eventType !== 'STOCK_ADJUSTED' ||
-            existingEvent.itemID !== stockBalanceID ||
-            Number(existingEvent.quantity) !== adjustmentQty ||
-            existingEvent.reason_ID !== movementReasonID ||
-            existingEvent.performedBy !== performedBy ||
-            (
-                existingEvent.notes !== expectedNotes &&
-                existingEvent.notes.indexOf(movementIDPrefix) !== 0
-            )
-        ) {
-            return req.reject(
-                409,
-                'Idempotency key already used with different adjustment data'
-            );
-        }
-
-        const existingMovementID =
-            existingEvent.notes.indexOf(movementIDPrefix) === 0
-                ? existingEvent.notes.substring(movementIDPrefix.length)
-                : null;
-
-        if (existingMovementID) {
-            const existingMovement = await tx.run(
-                SELECT.one.from(StockMovements)
-                    .where({ ID: existingMovementID })
-            );
-
-            if (!existingMovement) {
-                return req.reject(500, 'Original adjustment movement not found');
-            }
-
-            return existingMovement;
-        }
-
-        // Compatibility with the adjustment event created before this fix.
-        const existingStock = await tx.run(
-            SELECT.one.from(StockBalances)
-                .where({ ID: stockBalanceID })
-        );
-
-        if (!existingStock) {
-            return req.reject(404, 'Stock balance not found');
-        }
-
-        const existingMovement = await tx.run(
-            SELECT.one.from(StockMovements)
-                .where({
-                    material_ID: existingStock.material_ID,
-                    plant_ID: existingStock.plant_ID,
-                    storageLocation_ID: existingStock.storageLocation_ID,
-                    storageBin_ID: existingStock.storageBin_ID,
-                    batchNumber: existingStock.batchNumber,
-                    movementType: adjustmentType === 'INCREASE'
-                        ? 'ADJUSTMENT_IN'
-                        : 'ADJUSTMENT_OUT',
-                    stockCategory: stockCategory,
-                    quantity: adjustmentQty,
-                    movementReason_ID: movementReasonID,
-                    referenceNumber: referenceNumber
-                })
-                .orderBy('createdAt desc')
-        );
-
-        if (!existingMovement) {
-            return req.reject(500, 'Original adjustment movement not found');
-        }
-
-        return existingMovement;
-    }
-
-    const stock = await tx.run(
-        SELECT.one.from(StockBalances)
-            .where({ ID: stockBalanceID })
-            .forUpdate()
-    );
-
-    if (!stock) {
-        return req.reject(404, 'Stock balance not found');
-    }
-
-    const movementReason = await tx.run(
-        SELECT.one.from(MovementReasons)
-            .where({ ID: movementReasonID })
-    );
-
-    if (!movementReason) {
-        return req.reject(400, 'Invalid movement reason');
-    }
-
-    const currentQty = Number(stock[stockField]);
-
-    let updatedQty;
-
-    if (adjustmentType === 'INCREASE') {
-        updatedQty = currentQty + adjustmentQty;
-    } else {
-        if (currentQty < adjustmentQty) {
-            return req.reject(400, 'Adjustment quantity exceeds current stock');
-        }
-
-        updatedQty = currentQty - adjustmentQty;
-    }
-
-    const stockUpdate = {};
-    stockUpdate[stockField] = updatedQty;
-
-    await tx.run(
-        UPDATE(StockBalances)
-            .set(stockUpdate)
-            .where({ ID: stockBalanceID })
-    );
-
-    const movementType = adjustmentType === 'INCREASE'
-        ? 'ADJUSTMENT_IN'
-        : 'ADJUSTMENT_OUT';
-
-    // Generate the ID before inserting so we can return the exact movement.
-    const movementID = require('crypto').randomUUID();
-
-    const movement = {
-        ID: movementID,
-        material_ID: stock.material_ID,
-        plant_ID: stock.plant_ID,
-        storageLocation_ID: stock.storageLocation_ID,
-        storageBin_ID: stock.storageBin_ID,
-        batchNumber: stock.batchNumber,
-        movementType: movementType,
-        stockCategory: stockCategory,
-        quantity: adjustmentQty,
-        movementReason_ID: movementReasonID,
-        referenceNumber: referenceNumber || null
-    };
-
-    await tx.run(
-        INSERT.into(StockMovements).entries(movement)
-    );
-
-    const eventNotes =
-        expectedNotes + ', Movement ID: ' + movementID;
-
-    await tx.run(
-        INSERT.into(TransferEvents).entries({
-            idempotencyKey: idempotencyKey,
-            itemID: stockBalanceID,
-            quantity: adjustmentQty,
-            eventType: 'STOCK_ADJUSTED',
-            performedBy: performedBy,
-            reason_ID: movementReasonID,
-            notes: eventNotes
-        })
-    );
-
-    const createdMovement = await tx.run(
-        SELECT.one.from(StockMovements)
-            .where({ ID: movementID })
-    );
-
-    if (!createdMovement) {
-        return req.reject(500, 'Adjustment movement could not be retrieved');
-    }
-
-    console.log('ADJUSTSTOCK RETURN:', createdMovement);
-    console.log('ADJUSTSTOCK EVENT NOTES:', eventNotes);
-
-    return createdMovement;
-
-});
 
 this.on('releaseReservation', async (req) => {
 
@@ -872,6 +634,259 @@ this.on('reverseMovement', async (req) => {
 
     return reversalMovement;
 })
+
+
+
+
+
+this.on('adjustStock', async (req) => {
+
+    console.log('ADJUSTSTOCK HANDLER - UPDATED VERSION');
+
+    const {
+        stockBalanceID,
+        stockCategory,
+        adjustmentType,
+        quantity,
+        movementReasonID,
+        performedBy,
+        referenceNumber,
+        idempotencyKey
+    } = req.data;
+
+    const tx = cds.tx(req);
+
+    if (
+        !stockBalanceID ||
+        !stockCategory ||
+        !adjustmentType ||
+        quantity === undefined ||
+        quantity === null ||
+        !movementReasonID ||
+        !performedBy ||
+        !performedBy.trim() ||
+        !idempotencyKey
+    ) {
+        return req.reject(400, 'All required fields must be provided');
+    }
+
+    const adjustmentQty = Number(quantity);
+
+    if (!Number.isFinite(adjustmentQty) || adjustmentQty <= 0) {
+        return req.reject(400, 'Adjustment quantity must be greater than zero');
+    }
+
+    const categoryFields = {
+        UNRESTRICTED: 'unrestrictedQty',
+        QUALITY: 'qualityQty',
+        BLOCKED: 'blockedQty'
+    };
+
+    const stockField = categoryFields[stockCategory];
+
+    if (!stockField) {
+        return req.reject(
+            400,
+            'Only UNRESTRICTED, QUALITY and BLOCKED stock can be adjusted'
+        );
+    }
+
+    if (
+        adjustmentType !== 'INCREASE' &&
+        adjustmentType !== 'DECREASE'
+    ) {
+        return req.reject(400, 'Adjustment type must be INCREASE or DECREASE');
+    }
+
+    const expectedNotes =
+        'Stock Balance ID: ' + stockBalanceID +
+        ', Category: ' + stockCategory +
+        ', Adjustment Type: ' + adjustmentType +
+        ', Reason ID: ' + movementReasonID +
+        ', Reference Number: ' + (referenceNumber || '');
+
+    const existingEvent = await tx.run(
+        SELECT.one.from(TransferEvents)
+            .where({ idempotencyKey: idempotencyKey })
+    );
+
+    if (existingEvent) {
+
+        const movementIDPrefix = expectedNotes + ', Movement ID: ';
+
+        if (
+            existingEvent.eventType !== 'STOCK_ADJUSTED' ||
+            existingEvent.itemID !== stockBalanceID ||
+            Number(existingEvent.quantity) !== adjustmentQty ||
+            existingEvent.reason_ID !== movementReasonID ||
+            existingEvent.performedBy !== performedBy ||
+            (
+                existingEvent.notes !== expectedNotes &&
+                existingEvent.notes.indexOf(movementIDPrefix) !== 0
+            )
+        ) {
+            return req.reject(
+                409,
+                'Idempotency key already used with different adjustment data'
+            );
+        }
+
+        const existingMovementID =
+            existingEvent.notes.indexOf(movementIDPrefix) === 0
+                ? existingEvent.notes.substring(movementIDPrefix.length)
+                : null;
+
+        if (existingMovementID) {
+            const existingMovement = await tx.run(
+                SELECT.one.from(StockMovements)
+                    .where({ ID: existingMovementID })
+            );
+
+            if (!existingMovement) {
+                return req.reject(500, 'Original adjustment movement not found');
+            }
+
+            return existingMovement;
+        }
+
+        // Compatibility with the adjustment event created before this fix.
+        const existingStock = await tx.run(
+            SELECT.one.from(StockBalances)
+                .where({ ID: stockBalanceID })
+        );
+
+        if (!existingStock) {
+            return req.reject(404, 'Stock balance not found');
+        }
+
+        const existingMovement = await tx.run(
+            SELECT.one.from(StockMovements)
+                .where({
+                    material_ID: existingStock.material_ID,
+                    plant_ID: existingStock.plant_ID,
+                    storageLocation_ID: existingStock.storageLocation_ID,
+                    storageBin_ID: existingStock.storageBin_ID,
+                    batchNumber: existingStock.batchNumber,
+                    movementType: adjustmentType === 'INCREASE'
+                        ? 'ADJUSTMENT_IN'
+                        : 'ADJUSTMENT_OUT',
+                    stockCategory: stockCategory,
+                    quantity: adjustmentQty,
+                    movementReason_ID: movementReasonID,
+                    referenceNumber: referenceNumber
+                })
+                .orderBy('createdAt desc')
+        );
+
+        if (!existingMovement) {
+            return req.reject(500, 'Original adjustment movement not found');
+        }
+
+        return existingMovement;
+    }
+
+    const stock = await tx.run(
+        SELECT.one.from(StockBalances)
+            .where({ ID: stockBalanceID })
+            .forUpdate()
+    );
+
+    if (!stock) {
+        return req.reject(404, 'Stock balance not found');
+    }
+
+    const movementReason = await tx.run(
+        SELECT.one.from(MovementReasons)
+            .where({ ID: movementReasonID })
+    );
+
+    if (!movementReason) {
+        return req.reject(400, 'Invalid movement reason');
+    }
+
+    const currentQty = Number(stock[stockField]);
+
+    let updatedQty;
+
+    if (adjustmentType === 'INCREASE') {
+        updatedQty = currentQty + adjustmentQty;
+    } else {
+        if (currentQty < adjustmentQty) {
+            return req.reject(400, 'Adjustment quantity exceeds current stock');
+        }
+
+        updatedQty = currentQty - adjustmentQty;
+    }
+
+    const stockUpdate = {};
+    stockUpdate[stockField] = updatedQty;
+
+    await tx.run(
+        UPDATE(StockBalances)
+            .set(stockUpdate)
+            .where({ ID: stockBalanceID })
+    );
+
+    const movementType = adjustmentType === 'INCREASE'
+        ? 'ADJUSTMENT_IN'
+        : 'ADJUSTMENT_OUT';
+
+    // Generate the ID before inserting so we can return the exact movement.
+    const movementID = require('crypto').randomUUID();
+
+    const movement = {
+        ID: movementID,
+        material_ID: stock.material_ID,
+        plant_ID: stock.plant_ID,
+        storageLocation_ID: stock.storageLocation_ID,
+        storageBin_ID: stock.storageBin_ID,
+        batchNumber: stock.batchNumber,
+        movementType: movementType,
+        stockCategory: stockCategory,
+        quantity: adjustmentQty,
+        movementReason_ID: movementReasonID,
+        referenceNumber: referenceNumber || null
+    };
+
+    await tx.run(
+        INSERT.into(StockMovements).entries(movement)
+    );
+
+    const eventNotes =
+        expectedNotes + ', Movement ID: ' + movementID;
+
+    await tx.run(
+        INSERT.into(TransferEvents).entries({
+            idempotencyKey: idempotencyKey,
+            itemID: stockBalanceID,
+            quantity: adjustmentQty,
+            eventType: 'STOCK_ADJUSTED',
+            performedBy: performedBy,
+            reason_ID: movementReasonID,
+            notes: eventNotes
+        })
+    );
+
+    const createdMovement = await tx.run(
+        SELECT.one.from(StockMovements)
+            .where({ ID: movementID })
+    );
+
+    if (!createdMovement) {
+        return req.reject(500, 'Adjustment movement could not be retrieved');
+    }
+
+    console.log('ADJUSTSTOCK RETURN:', createdMovement);
+    console.log('ADJUSTSTOCK EVENT NOTES:', eventNotes);
+
+    return createdMovement;
+
+});
+
+
+
+
+
 
 
 

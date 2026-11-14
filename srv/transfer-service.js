@@ -336,6 +336,18 @@ this.on('reserve', async (req) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
 this.on('startPicking', async (req) => {
 
@@ -736,9 +748,6 @@ this.on('dispatchTransfer', async (req) => {
         status: newStatus
     };
 });
-
-
-
 
 
 
@@ -1154,6 +1163,9 @@ this.on("rejectTransfer", async (req) => {
 console.log('Registering closeTransfer handler');
 
 
+
+
+
 this.on('closeTransfer', async (req) => {
     const { transferID, performedBy } = req.data;
 
@@ -1224,9 +1236,9 @@ this.on('closeTransfer', async (req) => {
         return req.reject(500, error.message);
     }
 });
-
-
   
+
+
 
 
 
