@@ -326,6 +326,9 @@ this.on('reserve', async (req) => {
         })
     );
 
+
+    // throw new Error("TEST_ROLLBACK");
+
     // 10. Return reservations
     return await tx.run(
         SELECT.from(Reservations)
@@ -741,6 +744,8 @@ this.on('dispatchTransfer', async (req) => {
  
     console.log('Dispatch event inserted with ID:', idempotencyKey);
 
+        //throw new Error("TEST_DISPATCH_ROLLBACK");
+
     return {
         message: 'Transfer quantity dispatched successfully',
         dispatchedQty: dispatchQty,
@@ -1080,6 +1085,7 @@ this.on('receiveTransfer', async (req) => {
             notes: eventNotes
         })
     );
+       // throw new Error("TEST_RECEIVE_ROLLBACK");
 
     // 17. Return updated transfer
 

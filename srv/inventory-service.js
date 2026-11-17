@@ -1,5 +1,7 @@
 const cds = require('@sap/cds');
-
+const {
+    sendLowStockAlert
+} = require('./lib/alert-notification');
 
 module.exports=function(){
 
@@ -866,7 +868,7 @@ this.on('adjustStock', async (req) => {
             notes: eventNotes
         })
     );
-
+   // throw new Error("TEST_ADJUST_ROLLBACK");
     const createdMovement = await tx.run(
         SELECT.one.from(StockMovements)
             .where({ ID: movementID })
@@ -885,7 +887,32 @@ this.on('adjustStock', async (req) => {
 
 
 
+this.on('notifyLowStock', async (req) => {
 
+    const lowStock = await this.send('getLowStock');
+
+    const lowStockDetails = [];
+
+    for (const item of lowStock) {
+
+        const material = await SELECT.one.from(Materials).where({
+            ID: item.material_ID
+        });
+
+        if (material) {
+            lowStockDetails.push({
+                material: material,
+                stockBalance: item
+            });
+        }
+    }
+
+    if (lowStockDetails.length > 0) {
+        await sendLowStockAlert(lowStockDetails);
+    }
+
+    return lowStock.length;
+});
 
 
 

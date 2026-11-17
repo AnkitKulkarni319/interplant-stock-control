@@ -26,6 +26,7 @@ modules:
     requires:
       - name: inter-plant-stock-transfer-auth
       - name: inter-plant-stock-transfer-db
+      - name: alert
 
   - name: inter-plant-stock-transfer-db-deployer
     type: hdb
@@ -56,6 +57,11 @@ modules:
           app-uri: ${default-uri}
 
 resources:
+  - name: alert
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: alert-notification
+      service-plan: standard
   - name: inter-plant-stock-transfer-auth
     type: org.cloudfoundry.managed-service
     parameters:
@@ -71,6 +77,7 @@ resources:
             - "x509"
           redirect-uris:
             - https://*~{app-api/app-uri}/**
+            - https://oauth.pstmn.io/v1/callback
         role-collections:
           - name: 'WarehouseOperator (inter-plant-stock-transfer ${org}-${space})'
             description: 'generated'
@@ -88,6 +95,10 @@ resources:
             description: 'generated'
             role-template-references:
               - '$XSAPPNAME.ReadOnlyPlanner'
+          - name: 'JOBSCHEDULER (inter-plant-stock-transfer ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.JOBSCHEDULER'
     requires:
       - name: app-api
   - name: inter-plant-stock-transfer-db

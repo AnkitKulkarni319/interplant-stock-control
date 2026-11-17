@@ -1,3 +1,4 @@
+
 {
   "scopes": [
     {
@@ -15,6 +16,13 @@
     {
       "name": "$XSAPPNAME.ReadOnlyPlanner",
       "description": "ReadOnlyPlanner"
+    },
+    {
+      "name": "$XSAPPNAME.JOBSCHEDULER",
+      "description": "Job Scheduler Scope",
+      "grant-as-authority-to-apps": [
+        "$XSSERVICENAME(job-schedular)"
+      ]
     }
   ],
   "attributes": [],

@@ -13,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "@cap-js/hana": "^3",
+    "@sap_oss/alert-notification-client": "^1.14.0",
     "@sap/cds": "^10",
     "@sap/xssec": "^4"
   },
@@ -22,12 +23,12 @@
   },
   "private": true,
   "cds": {
-    "server":{
+    "server": {
       "index": true
     },
     "requires": {
       "[production]": {
-        "auth": "dummy"
+        "auth": "xsuaa"
       }
     }
   }
