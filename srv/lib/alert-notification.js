@@ -29,25 +29,31 @@ const credentials = JSON.parse(
 
 
 
+
+
 async function sendLowStockAlert(lowStockDetails) {
 
     const client = createAlertClient();
 
-    let body = '';
+    let body = 'LOW STOCK DETAILS\n\n';
+
+    let count = 1;
 
     for (const item of lowStockDetails) {
 
-        body = body + `
-Material Code: ${item.material.materialCode}
-Material Description: ${item.material.description}
-Batch Number: ${item.stockBalance.batchNumber}
-Reorder Level: ${item.material.reorderLevel}
-Unrestricted Stock: ${item.stockBalance.unrestrictedQty}
-Reserved Stock: ${item.stockBalance.reservedQty}
-Quality Stock: ${item.stockBalance.qualityQty}
+        body = body +
+`
+${count}. ${item.material.description}
+   Material Code       : ${item.material.materialCode}
+   Batch Number        : ${item.stockBalance.batchNumber}
+   Reorder Level       : ${item.material.reorderLevel}
+   Unrestricted Stock  : ${item.stockBalance.unrestrictedQty}
+   Reserved Stock      : ${item.stockBalance.reservedQty}
+   Quality Stock       : ${item.stockBalance.qualityQty}
 
---------------------------------
 `;
+
+        count++;
     }
 
     const event = {
@@ -67,6 +73,8 @@ Quality Stock: ${item.stockBalance.qualityQty}
 
     return response;
 }
+
+
 
 module.exports = {
     createAlertClient,sendLowStockAlert
