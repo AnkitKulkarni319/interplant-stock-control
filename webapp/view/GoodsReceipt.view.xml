@@ -1,0 +1,155 @@
+
+<mvc:View
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    controllerName="warehouse.warehouseoperator.controller.GoodsReceipt">
+
+    <Page title="Goods Receipt">
+
+        <content>
+            <VBox class="sapUiMediumMargin">
+
+                <Toolbar>
+                    <Title text="Dispatched Transfers" level="H2"/>
+                    <ToolbarSpacer/>
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".loadPage"/>
+                </Toolbar>
+
+                <Table
+                    id="receiptTransferTable"
+                    items="{receipt>/transfers}"
+                    mode="SingleSelectMaster"
+                    selectionChange=".onTransferSelect">
+
+                    <columns>
+                        <Column>
+                            <Text text="Transfer"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+                    </columns>
+
+                    <items>
+                        <ColumnListItem type="Active">
+                            <cells>
+                                <Text text="{receipt>transferNumber}"/>
+                                <Text text="{receipt>sourcePlant}"/>
+                                <Text text="{receipt>destinationPlant}"/>
+                                <ObjectStatus text="{receipt>status}"/>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+
+                </Table>
+
+                <Panel
+                    headerText="Receive Transfer Item"
+                    visible="{receipt>/selectedVisible}"
+                    class="sapUiMediumMarginTop">
+
+                    <content>
+                        <VBox class="sapUiSmallMargin">
+
+                            <!-- Receipt Form -->
+
+                            <VBox
+                                visible="{receipt>/canReceiveVisible}">
+
+                                <Label text="Transfer Item"/>
+
+                                <Select
+                                    id="receiptItemSelect"
+                                    width="100%"
+                                    items="{receipt>/items}">
+
+                                    <core:Item
+                                        key="{receipt>ID}"
+                                        text="{receipt>itemLabel}"/>
+
+                                </Select>
+
+                                <Label text="Good Quantity"/>
+
+                                <Input
+                                    id="goodQty"
+                                    type="Number"
+                                    value="0"/>
+
+                                <Label text="Damaged Quantity"/>
+
+                                <Input
+                                    id="damagedQty"
+                                    type="Number"
+                                    value="0"/>
+
+                                <Label text="Destination Storage Bin"/>
+
+                                <Select
+                                    id="destinationBinSelect"
+                                    width="100%"
+                                    items="{receipt>/bins}">
+
+                                    <core:Item
+                                        key="{receipt>ID}"
+                                        text="{receipt>label}"/>
+
+                                </Select>
+
+                                <Label text="Discrepancy Reason"/>
+
+                                <Select
+                                    id="discrepancySelect"
+                                    width="100%"
+                                    items="{receipt>/reasons}"
+                                    forceSelection="false">
+
+                                    <core:Item
+                                        key="{receipt>ID}"
+                                        text="{receipt>label}"/>
+
+                                </Select>
+
+                                <Button
+                                    text="Record Goods Receipt"
+                                    type="Emphasized"
+                                    icon="sap-icon://accept"
+                                    press=".onReceive"
+                                    class="sapUiMediumMarginTop"/>
+
+                            </VBox>
+
+                            <!-- Close Transfer Button -->
+
+                            <Button
+                                text="Close Transfer"
+                                type="Accept"
+                                icon="sap-icon://complete"
+                                visible="{receipt>/canCloseVisible}"
+                                press=".onCloseTransfer"
+                                class="sapUiSmallMarginTop"/>
+
+                        </VBox>
+                    </content>
+
+                </Panel>
+
+            </VBox>
+        </content>
+
+    </Page>
+
+</mvc:View>

@@ -1,0 +1,186 @@
+
+<mvc:View
+    controllerName="warehouse.warehouseoperator.controller.Picking"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="Reservation and Picking"
+        showNavButton="true"
+        navButtonPress=".onNavBack">
+
+        <content>
+
+            <VBox class="sapUiSmallMargin">
+
+                <Title
+                    text="Approved Transfers"
+                    level="H3"
+                    class="sapUiSmallMarginBottom"/>
+
+                <Table
+                    id="pickingTransferTable"
+                    items="{/TransferRequests}"
+                    mode="SingleSelectMaster"
+                    selectionChange=".onTransferSelect"
+                    updateFinished=".onTransfersUpdateFinished">
+
+                    <columns>
+
+                        <Column>
+                            <Text text="Transfer Number"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+
+                    </columns>
+
+                    <items>
+
+                        <ColumnListItem type="Active">
+
+                            <cells>
+
+                                <Text text="{transferNumber}"/>
+
+                                <Text
+    text="{
+        path: 'sourcePlant_ID',
+        formatter: '.formatPlant'
+    }"/>
+
+<Text
+    text="{
+        path: 'destinationPlant_ID',
+        formatter: '.formatPlant'
+    }"/>
+
+                                <ObjectStatus
+                                    text="{status}"
+                                    state="Success"/>
+
+                            </cells>
+
+                        </ColumnListItem>
+
+                    </items>
+
+                </Table>
+
+                <Title
+                    text="Transfer Items"
+                    level="H3"
+                    class="sapUiMediumMarginTop sapUiSmallMarginBottom"/>
+
+                <Table
+                    id="pickingItemsTable"
+                    items="{items}"
+                    updateFinished=".onItemsUpdateFinished">
+
+                    <columns>
+
+                        <Column>
+                            <Text text="Material"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Batch"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Requested Qty"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Available Qty"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Stock Check"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Action"/>
+                        </Column>
+
+                    </columns>
+
+                    <items>
+
+                        <ColumnListItem>
+
+                            <cells>
+
+                                <Text
+                                    text="{
+                                        path: 'material_ID',
+                                        formatter: '.formatMaterial'
+                                    }"/>
+
+                                <Text text="{batchNumber}"/>
+
+                                <Text text="{requestedQty}"/>
+
+                                <Text
+                                    id="availableQtyText"
+                                    text="0"/>
+
+                                <ObjectStatus
+                                    id="stockCheckStatus"
+                                    text="Select a transfer"
+                                    state="Information"/>
+
+<HBox>
+    <Button
+        id="reserveItemButton"
+        text="Reserve"
+        type="Emphasized"
+        enabled="false"
+        visible="true"
+        press=".onReserveItem"/>
+
+    <Button
+        id="releaseReservationButton"
+        text="Release Reservation"
+        type="Reject"
+        enabled="false"
+        visible="false"
+        class="sapUiTinyMarginBegin"
+        press=".onReleaseReservation"/>
+</HBox>
+
+
+                            </cells>
+
+                        </ColumnListItem>
+
+                    </items>
+
+                </Table>
+
+                <Button
+                    id="startPickingButton"
+                    text="Start Picking"
+                    type="Accept"
+                    class="sapUiMediumMarginTop"
+                    enabled="false"
+                    press=".onStartPicking"/>
+
+            </VBox>
+
+        </content>
+
+    </Page>
+
+</mvc:View>
+  

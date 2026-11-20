@@ -1,0 +1,160 @@
+
+<mvc:View
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    controllerName="warehouse.warehouseoperator.controller.Dispatch">
+
+    <Page
+        title="Dispatch"
+        showNavButton="true"
+        navButtonPress=".onNavBack">
+
+        <content>
+
+            <VBox class="sapUiMediumMargin">
+
+                <!-- Transfers Ready for Dispatch -->
+
+                <Toolbar>
+                    <Title
+                        text="Transfers Ready for Dispatch"
+                        level="H2"/>
+
+                    <ToolbarSpacer/>
+
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".loadPage"/>
+                </Toolbar>
+
+                <Table
+                    id="dispatchTransferTable"
+                    items="{dispatch>/transfers}"
+                    mode="SingleSelectMaster"
+                    selectionChange=".onTransferSelect"
+                    class="sapUiSmallMarginTop">
+
+                    <columns>
+
+                        <Column>
+                            <Text text="Transfer"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+
+                    </columns>
+
+                    <items>
+
+                        <ColumnListItem type="Inactive">
+
+                            <cells>
+
+                                <Text text="{dispatch>transferNumber}"/>
+
+                                <Text text="{dispatch>sourcePlant}"/>
+
+                                <Text text="{dispatch>destinationPlant}"/>
+
+                                <ObjectStatus
+                                    text="{dispatch>status}"
+                                    state="Information"/>
+
+                            </cells>
+
+                        </ColumnListItem>
+
+                    </items>
+
+                </Table>
+
+                <!-- Selected Transfer Item -->
+
+                <Panel
+                    headerText="Dispatch Transfer Items"
+                    visible="{dispatch>/selectedVisible}"
+                    class="sapUiMediumMarginTop">
+
+                    <content>
+
+                        <VBox class="sapUiSmallMargin">
+
+                            <Label
+                                text="Select Transfer Item"
+                                required="true"/>
+
+                            <Select
+                                id="dispatchItemSelect"
+                                width="100%"
+                                selectedKey=""
+                                items="{dispatch>/items}"
+                                change=".onDispatchItemChange">
+
+                                <core:Item
+                                    key="{dispatch>ID}"
+                                    text="{dispatch>itemLabel}"/>
+
+                            </Select>
+
+                            <Label
+                                text="Quantity to Dispatch"
+                                required="true"
+                                class="sapUiSmallMarginTop"/>
+
+                            <Input
+                                id="dispatchQty"
+                                type="Number"
+                                placeholder="Enter dispatch quantity"/>
+
+                            <Label
+                                text="Dispatch Reason (required for partial dispatch)"
+                                class="sapUiSmallMarginTop"/>
+
+                            <Input
+                                id="dispatchReason"
+                                placeholder="Enter dispatch reason"/>
+
+                            <Label
+                                text="Expected Arrival Date (required for partial dispatch)"
+                                class="sapUiSmallMarginTop"/>
+
+                            <DatePicker
+                                id="expectedDate"
+                                width="100%"
+                                valueFormat="yyyy-MM-dd"
+                                displayFormat="medium"
+                                placeholder="Select expected arrival date"/>
+
+                            <Button
+                                id="dispatchButton"
+                                text="Dispatch Quantity"
+                                type="Emphasized"
+                                icon="sap-icon://shipping-status"
+                                press=".onDispatch"
+                                class="sapUiMediumMarginTop"/>
+
+                        </VBox>
+
+                    </content>
+
+                </Panel>
+
+            </VBox>
+
+        </content>
+
+    </Page>
+
+</mvc:View>

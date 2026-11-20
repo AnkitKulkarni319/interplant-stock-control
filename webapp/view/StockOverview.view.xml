@@ -1,0 +1,59 @@
+<mvc:View xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" controllerName="warehouse.warehouseoperator.controller.StockOverview">
+<Page title="Stock Overview">
+<content>
+<VBox class="sapUiMediumMargin">
+<Toolbar>
+<Title text="Current Stock Balances" level="H2"/>
+<ToolbarSpacer/>
+<Button text="Refresh" icon="sap-icon://refresh" press=".loadStock"/>
+</Toolbar>
+<Table id="stockTable" growing="true" growingScrollToLoad="true" items="{stock>/rows}" noDataText="No stock balances found">
+<columns>
+<Column>
+<Text text="Material"/>
+</Column>
+<Column>
+<Text text="Plant"/>
+</Column>
+<Column>
+<Text text="Storage Location"/>
+</Column>
+<Column>
+<Text text="Batch"/>
+</Column>
+<Column hAlign="End">
+<Text text="Unrestricted"/>
+</Column>
+<Column hAlign="End">
+<Text text="Reserved"/>
+</Column>
+<Column hAlign="End">
+<Text text="Quality"/>
+</Column>
+<Column hAlign="End">
+<Text text="Blocked"/>
+</Column>
+<Column hAlign="End">
+<Text text="Available"/>
+</Column>
+</columns>
+<items>
+<ColumnListItem>
+<cells>
+<Text text="{stock>material}"/>
+<Text text="{stock>plant}"/>
+<Text text="{stock>location}"/>
+<Text text="{stock>batchNumber}"/>
+<ObjectNumber number="{stock>unrestrictedQty}"/>
+<ObjectNumber number="{stock>reservedQty}"/>
+<ObjectNumber number="{stock>qualityQty}"/>
+<ObjectNumber number="{stock>blockedQty}"/>
+<ObjectNumber number="{stock>availableQty}" state="Success"/>
+</cells>
+</ColumnListItem>
+</items>
+</Table>
+</VBox>
+</content>
+</Page>
+</mvc:View>

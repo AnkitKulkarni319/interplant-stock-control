@@ -1,0 +1,106 @@
+<mvc:View
+    controllerName="warehouse.warehouseoperator.controller.App"
+    displayBlock="true"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:tnt="sap.tnt">
+
+    <tnt:ToolPage id="toolPage">
+
+        <tnt:header>
+            <tnt:ToolHeader>
+                <Button
+                    icon="sap-icon://menu2"
+                    type="Transparent"
+                    press=".onSideNavButtonPress" />
+
+                <Title
+                    text="Warehouse Operator"
+                    level="H1" />
+            </tnt:ToolHeader>
+        </tnt:header>
+
+        <tnt:sideContent>
+            <tnt:SideNavigation
+                id="sideNavigation"
+                expanded="true">
+
+                <tnt:NavigationList
+                    id="navigationList"
+                    selectedKey="home"
+                    itemSelect=".onNavigationItemSelect">
+
+                    <tnt:NavigationListItem
+                        text="Home"
+                        icon="sap-icon://home"
+                        key="home" />
+
+                    <tnt:NavigationListItem
+                        text="Stock Overview"
+                        icon="sap-icon://database"
+                        key="stock" />
+
+                    <tnt:NavigationListItem
+                        text="Transfer Worklist"
+                        icon="sap-icon://shipping-status"
+                        key="transfers" />
+
+                    <tnt:NavigationListItem
+                        text="Picking &amp; Reservation"
+                        icon="sap-icon://cart"
+                        key="picking" />
+
+                    <tnt:NavigationListItem
+                        text="Dispatch"
+                        icon="sap-icon://shipping-status"
+                        key="dispatch" />
+
+                    <tnt:NavigationListItem
+                        text="Goods Receipt"
+                        icon="sap-icon://inbox"
+                        key="receipt" />
+
+                </tnt:NavigationList>
+            </tnt:SideNavigation>
+        </tnt:sideContent>
+
+        <tnt:mainContents>
+
+            <NavContainer id="pageContainer">
+
+                <pages>
+                    <Page
+                        id="homePage"
+                        title="Warehouse Operations">
+
+                        <content>
+                            <VBox
+                                class="sapUiLargeMargin"
+                                width="auto">
+
+                                <Title
+                                    text="Warehouse Operations"
+                                    level="H2" />
+
+                                <Text
+                                    text="Manage approved inter-plant transfers through reservation, picking, dispatch and goods receipt." />
+
+                                <MessageStrip
+                                    text="Select a function from the navigation panel to begin."
+                                    type="Information"
+                                    showIcon="true"
+                                    class="sapUiMediumMarginTop" />
+
+                            </VBox>
+                        </content>
+
+                    </Page>
+                </pages>
+
+            </NavContainer>
+
+        </tnt:mainContents>
+
+    </tnt:ToolPage>
+
+</mvc:View>

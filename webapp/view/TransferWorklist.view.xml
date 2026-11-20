@@ -1,0 +1,159 @@
+
+<mvc:View
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    controllerName="warehouse.warehouseoperator.controller.TransferWorklist">
+
+    <Page title="Transfer Worklist">
+
+        <content>
+
+            <VBox class="sapUiMediumMargin">
+
+                <Toolbar>
+                    <Title
+                        text="Inter-Plant Transfer Requests"
+                        level="H2"/>
+
+                    <ToolbarSpacer/>
+
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".loadTransferRequests"/>
+                </Toolbar>
+
+                <Table
+                    id="transferTable"
+                    items="{worklist>/transfers}"
+                    mode="SingleSelectMaster"
+                    selectionChange=".onTransferSelect"
+                    noDataText="No transfer requests found">
+
+                    <columns>
+
+                        <Column>
+                            <Text text="Transfer Number"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+
+                    </columns>
+
+                    <items>
+
+                        <ColumnListItem type="Active">
+
+                            <cells>
+                                <Text text="{worklist>transferNumber}"/>
+                                <Text text="{worklist>sourcePlantName}"/>
+                                <Text text="{worklist>sourceStorageLocationName}"/>
+                                <Text text="{worklist>destinationPlantName}"/>
+                                <Text text="{worklist>destinationStorageLocationName}"/>
+                                <ObjectStatus text="{worklist>status}"/>
+                            </cells>
+
+                        </ColumnListItem>
+
+                    </items>
+
+                </Table>
+
+                <Panel
+                    headerText="Transfer Items"
+                    visible="{details>/visible}"
+                    class="sapUiMediumMarginTop">
+
+                    <content>
+
+                        <VBox class="sapUiSmallMargin">
+
+                            <Title
+                                text="{details>/transferNumber}"
+                                level="H3"/>
+
+                            <Text
+                                text="Status: {details>/status}"/>
+
+                            <Table
+                                items="{transferItems>/items}"
+                                noDataText="No items for selected transfer">
+
+                                <columns>
+
+                                    <Column>
+                                        <Text text="Material"/>
+                                    </Column>
+
+                                    <Column>
+                                        <Text text="Batch"/>
+                                    </Column>
+
+                                    <Column hAlign="End">
+                                        <Text text="Requested"/>
+                                    </Column>
+
+                                    <Column hAlign="End">
+                                        <Text text="Dispatched"/>
+                                    </Column>
+
+                                    <Column hAlign="End">
+                                        <Text text="Received"/>
+                                    </Column>
+
+                                    <Column hAlign="End">
+                                        <Text text="Damaged"/>
+                                    </Column>
+
+                                </columns>
+
+                                <items>
+
+                                    <ColumnListItem>
+
+                                        <cells>
+                                            <Text text="{transferItems>materialDisplay}"/>
+                                            <Text text="{transferItems>batchNumber}"/>
+                                            <Text text="{transferItems>requestedQty}"/>
+                                            <Text text="{transferItems>dispatchedQty}"/>
+                                            <Text text="{transferItems>receivedQty}"/>
+                                            <Text text="{transferItems>damagedQty}"/>
+                                        </cells>
+
+                                    </ColumnListItem>
+
+                                </items>
+
+                            </Table>
+
+                        </VBox>
+
+                    </content>
+
+                </Panel>
+
+            </VBox>
+
+        </content>
+
+    </Page>
+
+</mvc:View>
