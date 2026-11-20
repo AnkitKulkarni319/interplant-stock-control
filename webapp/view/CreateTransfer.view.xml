@@ -1,0 +1,94 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.CreateTransfer"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="Create Transfer Request"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox
+                width="100%"
+                class="sapUiMediumMargin transferForm">
+
+                <Title
+                    text="Transfer Details"
+                    level="H2"
+                    class="sapUiSmallMarginBottom"/>
+
+                <Label
+                    text="Source Plant"
+                    required="true"/>
+
+                <Select
+                    id="sourcePlant"
+                    width="100%"
+                    forceSelection="false"
+                    autoAdjustWidth="false"
+                    change=".onSourcePlantChange"
+                    class="transferSelect"/>
+
+                <Label
+                    text="Source Storage Location"
+                    required="true"
+                    class="sapUiSmallMarginTop"/>
+
+                <Select
+                    id="sourceStorage"
+                    width="100%"
+                    forceSelection="false"
+                    autoAdjustWidth="false"
+                    class="transferSelect"/>
+
+                <Label
+                    text="Destination Plant"
+                    required="true"
+                    class="sapUiSmallMarginTop"/>
+
+                <Select
+                    id="destinationPlant"
+                    width="100%"
+                    forceSelection="false"
+                    autoAdjustWidth="false"
+                    change=".onDestinationPlantChange"
+                    class="transferSelect"/>
+
+                <Label
+                    text="Destination Storage Location"
+                    required="true"
+                    class="sapUiSmallMarginTop"/>
+
+                <Select
+                    id="destinationStorage"
+                    width="100%"
+                    forceSelection="false"
+                    autoAdjustWidth="false"
+                    class="transferSelect"/>
+
+                <HBox
+                    class="sapUiMediumMarginTop"
+                    alignItems="Center">
+
+                    <Button
+                        text="Create Draft"
+                        type="Emphasized"
+                        icon="sap-icon://save"
+                        press=".onCreateTransfer"/>
+
+                    <Button
+                        text="Clear"
+                        type="Default"
+                        class="sapUiSmallMarginBegin"
+                        press=".onClear"/>
+
+                </HBox>
+
+            </VBox>
+        </content>
+
+    </Page>
+
+</mvc:View>

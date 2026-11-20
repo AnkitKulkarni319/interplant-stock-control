@@ -1,0 +1,682 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+    <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Capabilities.V1.xml">
+        <edmx:Include Alias="Capabilities" Namespace="Org.OData.Capabilities.V1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+        <edmx:Include Alias="Common" Namespace="com.sap.vocabularies.Common.v1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+        <edmx:Include Alias="Core" Namespace="Org.OData.Core.V1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/UI.xml">
+        <edmx:Include Alias="UI" Namespace="com.sap.vocabularies.UI.v1"/>
+    </edmx:Reference>
+    <edmx:DataServices>
+        <Schema Namespace="InventoryService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+            <Annotation Term="Core.Links">
+                <Collection>
+                    <Record>
+                        <PropertyValue Property="rel" String="author"/>
+                        <PropertyValue Property="href" String="https://cap.cloud.sap"/>
+                    </Record>
+                </Collection>
+            </Annotation>
+            <EntityContainer Name="EntityContainer">
+                <EntitySet Name="UnitsOfMeasure" EntityType="InventoryService.UnitsOfMeasure"/>
+                <EntitySet Name="Materials" EntityType="InventoryService.Materials">
+                    <NavigationPropertyBinding Path="uom" Target="UnitsOfMeasure"/>
+                </EntitySet>
+                <EntitySet Name="Plants" EntityType="InventoryService.Plants"/>
+                <EntitySet Name="StorageLocations" EntityType="InventoryService.StorageLocations">
+                    <NavigationPropertyBinding Path="plant" Target="Plants"/>
+                </EntitySet>
+                <EntitySet Name="StorageBins" EntityType="InventoryService.StorageBins">
+                    <NavigationPropertyBinding Path="storageLocation" Target="StorageLocations"/>
+                </EntitySet>
+                <EntitySet Name="MovementReasons" EntityType="InventoryService.MovementReasons"/>
+                <EntitySet Name="StockBalances" EntityType="InventoryService.StockBalances">
+                    <NavigationPropertyBinding Path="material" Target="Materials"/>
+                    <NavigationPropertyBinding Path="plant" Target="Plants"/>
+                    <NavigationPropertyBinding Path="storageLocation" Target="StorageLocations"/>
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                </EntitySet>
+                <EntitySet Name="StockMovements" EntityType="InventoryService.StockMovements">
+                    <NavigationPropertyBinding Path="material" Target="Materials"/>
+                    <NavigationPropertyBinding Path="plant" Target="Plants"/>
+                    <NavigationPropertyBinding Path="storageLocation" Target="StorageLocations"/>
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                    <NavigationPropertyBinding Path="movementReason" Target="MovementReasons"/>
+                    <NavigationPropertyBinding Path="reversalOf" Target="StockMovements"/>
+                </EntitySet>
+                <EntitySet Name="Reservations" EntityType="InventoryService.Reservations">
+                    <NavigationPropertyBinding Path="material" Target="Materials"/>
+                    <NavigationPropertyBinding Path="plant" Target="Plants"/>
+                    <NavigationPropertyBinding Path="storageLocation" Target="StorageLocations"/>
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                    <NavigationPropertyBinding Path="transferItem" Target="TransferItems"/>
+                </EntitySet>
+                <EntitySet Name="TransferItems" EntityType="InventoryService.TransferItems">
+                    <NavigationPropertyBinding Path="material" Target="Materials"/>
+                    <NavigationPropertyBinding Path="discrepancyReason" Target="MovementReasons"/>
+                </EntitySet>
+                <FunctionImport Name="getAvailableQuantity" Function="InventoryService.getAvailableQuantity"/>
+                <FunctionImport Name="getLowStock" Function="InventoryService.getLowStock" EntitySet="StockBalances"/>
+                <ActionImport Name="releaseReservation" Action="InventoryService.releaseReservation" EntitySet="Reservations"/>
+                <ActionImport Name="reverseMovement" Action="InventoryService.reverseMovement" EntitySet="StockMovements"/>
+                <ActionImport Name="adjustStock" Action="InventoryService.adjustStock" EntitySet="StockMovements"/>
+                <ActionImport Name="notifyLowStock" Action="InventoryService.notifyLowStock"/>
+            </EntityContainer>
+            <EntityType Name="UnitsOfMeasure">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="code" Type="Edm.String" MaxLength="10" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="50" Nullable="false"/>
+            </EntityType>
+            <EntityType Name="Materials">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="materialCode" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="100" Nullable="false"/>
+                <Property Name="category" Type="Edm.String" MaxLength="50" Nullable="false"/>
+                <NavigationProperty Name="uom" Type="InventoryService.UnitsOfMeasure" Nullable="false">
+                    <ReferentialConstraint Property="uom_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="uom_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="reorderLevel" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="safetyStock" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="isActive" Type="Edm.Boolean" DefaultValue="true"/>
+            </EntityType>
+            <EntityType Name="Plants">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="plantCode" Type="Edm.String" MaxLength="10" Nullable="false"/>
+                <Property Name="plantName" Type="Edm.String" MaxLength="100" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="255"/>
+            </EntityType>
+            <EntityType Name="StorageLocations">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="locationCode" Type="Edm.String" MaxLength="10" Nullable="false"/>
+                <Property Name="locationName" Type="Edm.String" MaxLength="100" Nullable="false"/>
+                <NavigationProperty Name="plant" Type="InventoryService.Plants" Nullable="false">
+                    <ReferentialConstraint Property="plant_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+            </EntityType>
+            <EntityType Name="StorageBins">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="binCode" Type="Edm.String" MaxLength="20" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="100"/>
+                <NavigationProperty Name="storageLocation" Type="InventoryService.StorageLocations" Nullable="false">
+                    <ReferentialConstraint Property="storageLocation_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+            </EntityType>
+            <EntityType Name="MovementReasons">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="reasonCode" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="100" Nullable="false"/>
+            </EntityType>
+            <EntityType Name="StockBalances">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <NavigationProperty Name="material" Type="InventoryService.Materials" Nullable="false">
+                    <ReferentialConstraint Property="material_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="plant" Type="InventoryService.Plants" Nullable="false">
+                    <ReferentialConstraint Property="plant_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageLocation" Type="InventoryService.StorageLocations" Nullable="false">
+                    <ReferentialConstraint Property="storageLocation_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="InventoryService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="unrestrictedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="reservedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="qualityQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="blockedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+            </EntityType>
+            <EntityType Name="StockMovements">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <NavigationProperty Name="material" Type="InventoryService.Materials" Nullable="false">
+                    <ReferentialConstraint Property="material_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="plant" Type="InventoryService.Plants" Nullable="false">
+                    <ReferentialConstraint Property="plant_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageLocation" Type="InventoryService.StorageLocations" Nullable="false">
+                    <ReferentialConstraint Property="storageLocation_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="InventoryService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="movementType" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="stockCategory" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <NavigationProperty Name="movementReason" Type="InventoryService.MovementReasons">
+                    <ReferentialConstraint Property="movementReason_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="movementReason_ID" Type="Edm.Guid"/>
+                <Property Name="referenceNumber" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <NavigationProperty Name="reversalOf" Type="InventoryService.StockMovements">
+                    <ReferentialConstraint Property="reversalOf_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="reversalOf_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <EntityType Name="Reservations">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <NavigationProperty Name="material" Type="InventoryService.Materials" Nullable="false">
+                    <ReferentialConstraint Property="material_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="plant" Type="InventoryService.Plants" Nullable="false">
+                    <ReferentialConstraint Property="plant_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageLocation" Type="InventoryService.StorageLocations" Nullable="false">
+                    <ReferentialConstraint Property="storageLocation_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="InventoryService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="reservedQty" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <Property Name="releasedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="consumedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="status" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="requirementReference" Type="Edm.String" MaxLength="30"/>
+                <NavigationProperty Name="transferItem" Type="InventoryService.TransferItems">
+                    <ReferentialConstraint Property="transferItem_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="transferItem_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <EntityType Name="TransferItems">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="transfer_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="material" Type="InventoryService.Materials" Nullable="false">
+                    <ReferentialConstraint Property="material_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="requestedQty" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <Property Name="dispatchedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="receivedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="damagedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <NavigationProperty Name="discrepancyReason" Type="InventoryService.MovementReasons">
+                    <ReferentialConstraint Property="discrepancyReason_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="discrepancyReason_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <Function Name="getAvailableQuantity" IsBound="false" IsComposable="false">
+                <Parameter Name="materialID" Type="Edm.Guid"/>
+                <Parameter Name="plantID" Type="Edm.Guid"/>
+                <Parameter Name="storageLocationID" Type="Edm.Guid"/>
+                <Parameter Name="storageBinID" Type="Edm.Guid"/>
+                <Parameter Name="batchNumber" Type="Edm.String" MaxLength="40"/>
+                <ReturnType Type="Edm.Decimal" Precision="15" Scale="3"/>
+            </Function>
+            <Function Name="getLowStock" IsBound="false" IsComposable="false">
+                <ReturnType Type="Collection(InventoryService.StockBalances)"/>
+            </Function>
+            <Action Name="releaseReservation" IsBound="false">
+                <Parameter Name="reservationID" Type="Edm.Guid"/>
+                <Parameter Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="InventoryService.Reservations"/>
+            </Action>
+            <Action Name="reverseMovement" IsBound="false">
+                <Parameter Name="movementID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="reason" Type="Edm.String" MaxLength="255"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="InventoryService.StockMovements"/>
+            </Action>
+            <Action Name="adjustStock" IsBound="false">
+                <Parameter Name="stockBalanceID" Type="Edm.Guid"/>
+                <Parameter Name="stockCategory" Type="Edm.String" MaxLength="20"/>
+                <Parameter Name="adjustmentType" Type="Edm.String" MaxLength="20"/>
+                <Parameter Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Parameter Name="movementReasonID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="referenceNumber" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="InventoryService.StockMovements"/>
+            </Action>
+            <Action Name="notifyLowStock" IsBound="false">
+                <ReturnType Type="Edm.Int32"/>
+            </Action>
+            <Annotations Target="InventoryService.UnitsOfMeasure/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.UnitsOfMeasure/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.UnitsOfMeasure/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.UnitsOfMeasure/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.UnitsOfMeasure/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Materials/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Materials/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Materials/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Materials/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Materials/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Plants/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Plants/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Plants/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Plants/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Plants/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageLocations/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageLocations/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageLocations/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageLocations/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageLocations/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageBins/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageBins/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageBins/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageBins/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StorageBins/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.MovementReasons/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.MovementReasons/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.MovementReasons/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.MovementReasons/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.MovementReasons/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.EntityContainer/StockBalances">
+                <Annotation Term="Capabilities.DeleteRestrictions">
+                    <Record Type="Capabilities.DeleteRestrictionsType">
+                        <PropertyValue Property="Deletable" Bool="false"/>
+                    </Record>
+                </Annotation>
+                <Annotation Term="Capabilities.InsertRestrictions">
+                    <Record Type="Capabilities.InsertRestrictionsType">
+                        <PropertyValue Property="Insertable" Bool="false"/>
+                    </Record>
+                </Annotation>
+                <Annotation Term="Capabilities.UpdateRestrictions">
+                    <Record Type="Capabilities.UpdateRestrictionsType">
+                        <PropertyValue Property="Updatable" Bool="false"/>
+                    </Record>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.StockBalances/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockBalances/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockBalances/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockBalances/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockBalances/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockMovements/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockMovements/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockMovements/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockMovements/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.StockMovements/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Reservations/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Reservations/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Reservations/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Reservations/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.Reservations/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.getAvailableQuantity(Edm.Guid,Edm.Guid,Edm.Guid,Edm.Guid,Edm.String)/materialID">
+                <Annotation Term="Core.OptionalParameter">
+                    <Record Type="Core.OptionalParameterType"/>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.getAvailableQuantity(Edm.Guid,Edm.Guid,Edm.Guid,Edm.Guid,Edm.String)/plantID">
+                <Annotation Term="Core.OptionalParameter">
+                    <Record Type="Core.OptionalParameterType"/>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.getAvailableQuantity(Edm.Guid,Edm.Guid,Edm.Guid,Edm.Guid,Edm.String)/storageLocationID">
+                <Annotation Term="Core.OptionalParameter">
+                    <Record Type="Core.OptionalParameterType"/>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.getAvailableQuantity(Edm.Guid,Edm.Guid,Edm.Guid,Edm.Guid,Edm.String)/storageBinID">
+                <Annotation Term="Core.OptionalParameter">
+                    <Record Type="Core.OptionalParameterType"/>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.getAvailableQuantity(Edm.Guid,Edm.Guid,Edm.Guid,Edm.Guid,Edm.String)/batchNumber">
+                <Annotation Term="Core.OptionalParameter">
+                    <Record Type="Core.OptionalParameterType"/>
+                </Annotation>
+            </Annotations>
+            <Annotations Target="InventoryService.TransferItems/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="InventoryService.TransferItems/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.TransferItems/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="InventoryService.TransferItems/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="InventoryService.TransferItems/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>

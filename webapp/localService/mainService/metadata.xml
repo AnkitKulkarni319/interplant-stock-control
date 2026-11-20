@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+        <edmx:Include Alias="Common" Namespace="com.sap.vocabularies.Common.v1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+        <edmx:Include Alias="Core" Namespace="Org.OData.Core.V1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/UI.xml">
+        <edmx:Include Alias="UI" Namespace="com.sap.vocabularies.UI.v1"/>
+    </edmx:Reference>
+    <edmx:DataServices>
+        <Schema Namespace="TransferService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+            <Annotation Term="Core.Links">
+                <Collection>
+                    <Record>
+                        <PropertyValue Property="rel" String="author"/>
+                        <PropertyValue Property="href" String="https://cap.cloud.sap"/>
+                    </Record>
+                </Collection>
+            </Annotation>
+            <EntityContainer Name="EntityContainer">
+                <EntitySet Name="TransferRequests" EntityType="TransferService.TransferRequests">
+                    <NavigationPropertyBinding Path="items" Target="TransferItems"/>
+                    <NavigationPropertyBinding Path="events" Target="TransferEvents"/>
+                </EntitySet>
+                <EntitySet Name="TransferItems" EntityType="TransferService.TransferItems">
+                    <NavigationPropertyBinding Path="transfer" Target="TransferRequests"/>
+                </EntitySet>
+                <EntitySet Name="Reservations" EntityType="TransferService.Reservations">
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                    <NavigationPropertyBinding Path="transferItem" Target="TransferItems"/>
+                </EntitySet>
+                <EntitySet Name="StockBalances" EntityType="TransferService.StockBalances">
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                </EntitySet>
+                <EntitySet Name="TransferEvents" EntityType="TransferService.TransferEvents">
+                    <NavigationPropertyBinding Path="transfer" Target="TransferRequests"/>
+                </EntitySet>
+                <EntitySet Name="StorageBins" EntityType="TransferService.StorageBins"/>
+                <EntitySet Name="StockMovements" EntityType="TransferService.StockMovements">
+                    <NavigationPropertyBinding Path="storageBin" Target="StorageBins"/>
+                    <NavigationPropertyBinding Path="reversalOf" Target="StockMovements"/>
+                </EntitySet>
+                <ActionImport Name="reserve" Action="TransferService.reserve" EntitySet="Reservations"/>
+                <ActionImport Name="submitTransfer" Action="TransferService.submitTransfer" EntitySet="TransferRequests"/>
+                <ActionImport Name="approveTransfer" Action="TransferService.approveTransfer" EntitySet="TransferRequests"/>
+                <ActionImport Name="rejectTransfer" Action="TransferService.rejectTransfer" EntitySet="TransferRequests"/>
+                <ActionImport Name="startPicking" Action="TransferService.startPicking" EntitySet="TransferRequests"/>
+                <ActionImport Name="dispatchTransfer" Action="TransferService.dispatchTransfer" EntitySet="TransferRequests"/>
+                <ActionImport Name="receiveTransfer" Action="TransferService.receiveTransfer" EntitySet="TransferRequests"/>
+                <ActionImport Name="closeTransfer" Action="TransferService.closeTransfer" EntitySet="TransferRequests"/>
+            </EntityContainer>
+            <EntityType Name="TransferRequests">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="transferNumber" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="sourcePlant_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="destinationPlant_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="sourceStorageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="destinationStorageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="status" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <NavigationProperty Name="items" Type="Collection(TransferService.TransferItems)" Partner="transfer">
+                    <OnDelete Action="Cascade"/>
+                </NavigationProperty>
+                <NavigationProperty Name="events" Type="Collection(TransferService.TransferEvents)" Partner="transfer">
+                    <OnDelete Action="Cascade"/>
+                </NavigationProperty>
+            </EntityType>
+            <EntityType Name="TransferItems">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <NavigationProperty Name="transfer" Type="TransferService.TransferRequests" Nullable="false" Partner="items">
+                    <ReferentialConstraint Property="transfer_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="transfer_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="requestedQty" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <Property Name="dispatchedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="receivedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="damagedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="discrepancyReason_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <EntityType Name="Reservations">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="TransferService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="reservedQty" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <Property Name="releasedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="consumedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="status" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="requirementReference" Type="Edm.String" MaxLength="30"/>
+                <NavigationProperty Name="transferItem" Type="TransferService.TransferItems">
+                    <ReferentialConstraint Property="transferItem_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="transferItem_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <EntityType Name="StockBalances">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="TransferService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="unrestrictedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="reservedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="qualityQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+                <Property Name="blockedQty" Type="Edm.Decimal" Precision="15" Scale="3" DefaultValue="0"/>
+            </EntityType>
+            <EntityType Name="TransferEvents">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <NavigationProperty Name="transfer" Type="TransferService.TransferRequests" Partner="events">
+                    <ReferentialConstraint Property="transfer_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="transfer_ID" Type="Edm.Guid"/>
+                <Property Name="idempotencyKey" Type="Edm.Guid"/>
+                <Property Name="itemID" Type="Edm.Guid"/>
+                <Property Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Property Name="eventType" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="performedBy" Type="Edm.String" MaxLength="100" Nullable="false"/>
+                <Property Name="reason_ID" Type="Edm.Guid"/>
+                <Property Name="expectedDate" Type="Edm.Date"/>
+                <Property Name="notes" Type="Edm.String" MaxLength="255"/>
+            </EntityType>
+            <EntityType Name="StorageBins">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="binCode" Type="Edm.String" MaxLength="20" Nullable="false"/>
+                <Property Name="description" Type="Edm.String" MaxLength="100"/>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+            </EntityType>
+            <EntityType Name="StockMovements">
+                <Key>
+                    <PropertyRef Name="ID"/>
+                </Key>
+                <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="createdBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="modifiedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+                <Property Name="modifiedBy" Type="Edm.String" MaxLength="255"/>
+                <Property Name="material_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="plant_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="storageLocation_ID" Type="Edm.Guid" Nullable="false"/>
+                <NavigationProperty Name="storageBin" Type="TransferService.StorageBins" Nullable="false">
+                    <ReferentialConstraint Property="storageBin_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="storageBin_ID" Type="Edm.Guid" Nullable="false"/>
+                <Property Name="batchNumber" Type="Edm.String" MaxLength="40" Nullable="false"/>
+                <Property Name="movementType" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="stockCategory" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <Property Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3" Nullable="false"/>
+                <Property Name="movementReason_ID" Type="Edm.Guid"/>
+                <Property Name="referenceNumber" Type="Edm.String" MaxLength="30" Nullable="false"/>
+                <NavigationProperty Name="reversalOf" Type="TransferService.StockMovements">
+                    <ReferentialConstraint Property="reversalOf_ID" ReferencedProperty="ID"/>
+                </NavigationProperty>
+                <Property Name="reversalOf_ID" Type="Edm.Guid"/>
+            </EntityType>
+            <Action Name="reserve" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="itemID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="Collection(TransferService.Reservations)"/>
+            </Action>
+            <Action Name="submitTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="approveTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="rejectTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="reason" Type="Edm.String" MaxLength="255"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="startPicking" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="dispatchTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="itemID" Type="Edm.Guid"/>
+                <Parameter Name="quantity" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="reason" Type="Edm.String" MaxLength="255"/>
+                <Parameter Name="expectedDate" Type="Edm.Date"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="receiveTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="itemID" Type="Edm.Guid"/>
+                <Parameter Name="goodQty" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Parameter Name="damagedQty" Type="Edm.Decimal" Precision="15" Scale="3"/>
+                <Parameter Name="destinationStorageBinID" Type="Edm.Guid"/>
+                <Parameter Name="discrepancyReasonID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <Parameter Name="idempotencyKey" Type="Edm.Guid"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Action Name="closeTransfer" IsBound="false">
+                <Parameter Name="transferID" Type="Edm.Guid"/>
+                <Parameter Name="performedBy" Type="Edm.String" MaxLength="100"/>
+                <ReturnType Type="TransferService.TransferRequests"/>
+            </Action>
+            <Annotations Target="TransferService.TransferRequests/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferRequests/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferRequests/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferRequests/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferRequests/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferItems/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferItems/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferItems/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferItems/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferItems/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.Reservations/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.Reservations/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.Reservations/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.Reservations/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.Reservations/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockBalances/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockBalances/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockBalances/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockBalances/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockBalances/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferEvents/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferEvents/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferEvents/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferEvents/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.TransferEvents/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StorageBins/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.StorageBins/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StorageBins/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StorageBins/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StorageBins/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockMovements/ID">
+                <Annotation Term="Core.ComputedDefaultValue" Bool="true"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockMovements/createdAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Created On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockMovements/createdBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Immutable" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Created By"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockMovements/modifiedAt">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Common.Label" String="Changed On"/>
+            </Annotations>
+            <Annotations Target="TransferService.StockMovements/modifiedBy">
+                <Annotation Term="UI.HiddenFilter" Bool="true"/>
+                <Annotation Term="UI.ExcludeFromNavigationContext" Bool="true"/>
+                <Annotation Term="Core.Computed" Bool="true"/>
+                <Annotation Term="Core.Description" String="User's unique ID"/>
+                <Annotation Term="Common.Label" String="Changed By"/>
+            </Annotations>
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>

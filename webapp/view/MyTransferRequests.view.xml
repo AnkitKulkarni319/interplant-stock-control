@@ -1,0 +1,126 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.MyTransferRequests"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="My Transfer Requests"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox class="sapUiMediumMargin">
+
+                <Toolbar>
+                    <Title text="Transfer Requests" level="H2"/>
+                    <ToolbarSpacer/>
+
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".onRefresh"/>
+
+                   
+                </Toolbar>
+
+                <Table
+                    id="requestsTable"
+                    items="{/TransferRequests}"
+                    growing="true"
+                    growingScrollToLoad="true"
+                    mode="SingleSelectMaster"
+                    selectionChange=".onSelectionChange"
+                    updateFinished=".onRequestsUpdateFinished"
+                    noDataText="No transfer requests found">
+
+                    <columns>
+                        <Column>
+                            <Text text="Transfer Number"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Storage Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Storage Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Created Date"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Actions"/>
+                        </Column>
+                    </columns>
+
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+
+                                <Text text="{transferNumber}"/>
+
+                                <Text
+                                    text="{
+                                        path: 'sourcePlant_ID',
+                                        formatter: '.formatPlantName'
+                                    }"/>
+
+                                <Text
+                                    text="{
+                                        path: 'sourceStorageLocation_ID',
+                                        formatter: '.formatStorageLocationName'
+                                    }"/>
+
+                                <Text
+                                    text="{
+                                        path: 'destinationPlant_ID',
+                                        formatter: '.formatPlantName'
+                                    }"/>
+
+                                <Text
+                                    text="{
+                                        path: 'destinationStorageLocation_ID',
+                                        formatter: '.formatStorageLocationName'
+                                    }"/>
+
+                                <ObjectStatus text="{status}"/>
+
+                                <Text
+                                    text="{
+                                        path: 'createdAt',
+                                        formatter: '.formatCreatedAt'
+                                    }"/>
+
+                                <Button
+                                    text="Manage Items"
+                                    type="Transparent"
+                                    icon="sap-icon://edit"
+                                    press=".onManageItems"
+                                    visible="false"/>
+
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+
+                </Table>
+
+            </VBox>
+        </content>
+
+    </Page>
+</mvc:View>

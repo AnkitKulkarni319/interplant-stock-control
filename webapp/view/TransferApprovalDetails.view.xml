@@ -1,0 +1,117 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.TransferApprovalDetails"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="Transfer Approval Details"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox class="sapUiMediumMargin" width="100%">
+
+                <Title
+                    text="Transfer Information"
+                    level="H2" />
+
+                <Panel class="sapUiSmallMarginTop">
+                    <content>
+                        <VBox class="sapUiMediumMargin">
+
+                            <Label text="Transfer Number" />
+                            <Text text="{approval>/transferNumber}" />
+
+                            <Label text="Source Plant" />
+                            <Text text="{approval>/sourcePlant}" />
+
+                            <Label text="Source Storage Location" />
+                            <Text text="{approval>/sourceStorageLocation}" />
+
+                            <Label text="Destination Plant" />
+                            <Text text="{approval>/destinationPlant}" />
+
+                            <Label text="Destination Storage Location" />
+                            <Text text="{approval>/destinationStorageLocation}" />
+
+                            <Label text="Status" />
+                            <ObjectStatus
+                                text="{approval>/status}"
+                                state="Warning" />
+
+                        </VBox>
+                    </content>
+                </Panel>
+
+                <Title
+                    text="Requested Materials"
+                    level="H2"
+                    class="sapUiMediumMarginTop" />
+
+<Table
+    id="approvalItemsTable"
+    items="{approvalItems>/items}"
+    noDataText="No requested materials found">
+
+    <columns>
+        <Column>
+            <Text text="Material Code" />
+        </Column>
+
+        <Column>
+            <Text text="Material Description" />
+        </Column>
+
+        <Column>
+            <Text text="Batch Number" />
+        </Column>
+
+        <Column>
+            <Text text="UOM" />
+        </Column>
+
+        <Column hAlign="End">
+            <Text text="Requested Quantity" />
+        </Column>
+    </columns>
+
+    <items>
+        <ColumnListItem>
+            <cells>
+                <Text text="{approvalItems>materialCode}" />
+                <Text text="{approvalItems>materialDescription}" />
+                <Text text="{approvalItems>batchNumber}" />
+                <Text text="{approvalItems>uom}" />
+                <ObjectNumber
+                    number="{approvalItems>requestedQty}" />
+            </cells>
+        </ColumnListItem>
+    </items>
+
+</Table>
+
+
+                <HBox
+                    justifyContent="End"
+                    class="sapUiMediumMarginTop">
+<Button
+    text="Approve Transfer"
+    type="Accept"
+    press=".onApprove"
+    visible="{= ${approval>/status} === 'PENDING_APPROVAL' }" />
+
+                  <Button
+    text="Reject Transfer"
+    type="Reject"
+    press=".onReject"
+    visible="{= ${approval>/status} === 'PENDING_APPROVAL' }" />
+
+                </HBox>
+
+            </VBox>
+        </content>
+
+    </Page>
+
+</mvc:View>

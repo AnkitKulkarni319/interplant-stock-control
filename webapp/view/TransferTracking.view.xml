@@ -1,0 +1,92 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.TransferTracking"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="Transfer Tracking"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox class="sapUiMediumMargin">
+
+                <Toolbar>
+                    <Title
+                        text="Transfer Status Overview"
+                        level="H2"/>
+                    <ToolbarSpacer/>
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".onRefresh"/>
+                </Toolbar>
+
+                <Table
+                    id="trackingTable"
+                    items="{/TransferRequests}"
+                    updateFinished=".onTrackingUpdateFinished"
+                    growing="true"
+                    growingScrollToLoad="true"
+                    noDataText="No transfer requests found">
+
+                    <columns>
+                        <Column>
+                            <Text text="Transfer Number"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Source Storage Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Plant"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Destination Storage Location"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Status"/>
+                        </Column>
+                        <Column>
+    <Text text="Action"/>
+</Column>
+                    </columns>
+
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <Text text="{transferNumber}"/>
+                                <Text text="{sourcePlant_ID}"/>
+                                <Text text="{sourceStorageLocation_ID}"/>
+                                <Text text="{destinationPlant_ID}"/>
+                                <Text text="{destinationStorageLocation_ID}"/>
+
+                                <ObjectStatus
+                                    text="{status}"
+                                    state="Information"/>
+
+                                    <Button
+    text="View Details"
+    type="Transparent"
+    press=".onViewDetails"/>
+                            </cells>
+
+                        </ColumnListItem>
+                        
+                    </items>
+
+                </Table>
+
+            </VBox>
+        </content>
+
+    </Page>
+</mvc:View>

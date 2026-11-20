@@ -1,0 +1,131 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.TransferTrackingDetails"
+    xmlns:mvc="sap.ui.core.mvc"
+   xmlns="sap.m"
+xmlns:form="sap.ui.layout.form">
+
+    <Page
+        title="Transfer Tracking Details"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox class="sapUiMediumMargin" width="auto">
+
+                <Toolbar>
+                    <Title text="Transfer Information" level="H2"/>
+                    <ToolbarSpacer/>
+                    <Button
+                        text="Refresh"
+                        icon="sap-icon://refresh"
+                        press=".onRefresh"/>
+                </Toolbar>
+
+                <form:SimpleForm
+                    editable="false"
+                    layout="ResponsiveGridLayout">
+
+                    <Label text="Transfer Number"/>
+                    <Text text="{tracking>/transferNumber}"/>
+
+                    <Label text="Source Plant"/>
+                    <Text text="{tracking>/sourcePlant}"/>
+
+                    <Label text="Source Storage Location"/>
+                    <Text text="{tracking>/sourceStorageLocation}"/>
+
+                    <Label text="Destination Plant"/>
+                    <Text text="{tracking>/destinationPlant}"/>
+
+                    <Label text="Destination Storage Location"/>
+                    <Text text="{tracking>/destinationStorageLocation}"/>
+
+                    <Label text="Status"/>
+                    <ObjectStatus
+                        text="{tracking>/status}"
+                        state="Information"/>
+
+                </form:SimpleForm>
+
+                <Toolbar class="sapUiMediumMarginTop">
+                    <Title text="Material Tracking" level="H2"/>
+                </Toolbar>
+
+               
+<Table
+    id="trackingItemsTable"
+    items="{trackingItems>/items}"
+    growing="true"
+    growingScrollToLoad="true">
+
+    <columns>
+        <Column><Text text="Material Code"/></Column>
+        <Column><Text text="Material Description"/></Column>
+        <Column><Text text="Batch Number"/></Column>
+        <Column><Text text="UOM"/></Column>
+        <Column><Text text="Requested"/></Column>
+        <Column><Text text="Dispatched"/></Column>
+        <Column><Text text="Received"/></Column>
+        <Column><Text text="Damaged"/></Column>
+        <Column><Text text="Discrepancy Reason"/></Column>
+    </columns>
+
+    <items>
+        <ColumnListItem>
+            <cells>
+                <Text text="{trackingItems>materialCode}"/>
+                <Text text="{trackingItems>materialDescription}"/>
+                <Text text="{trackingItems>batchNumber}"/>
+                <Text text="{trackingItems>uom}"/>
+                <Text text="{trackingItems>requestedQty}"/>
+                <Text text="{trackingItems>dispatchedQty}"/>
+                <Text text="{trackingItems>receivedQty}"/>
+                <Text text="{trackingItems>damagedQty}"/>
+
+                <Text
+                    text="{trackingItems>discrepancyReason}"
+                    visible="{= !!${trackingItems>discrepancyReason} }"/>
+            </cells>
+        </ColumnListItem>
+    </items>
+
+</Table>
+
+
+                <Toolbar class="sapUiMediumMarginTop">
+                    <Title text="Transfer History" level="H2"/>
+                </Toolbar>
+
+                <Table
+                    id="trackingEventsTable"
+                    items="{trackingEvents>/events}"
+                    growing="true">
+
+                    <columns>
+                        <Column><Text text="Event"/></Column>
+                        <Column><Text text="Description"/></Column>
+                        <Column><Text text="Performed By"/></Column>
+                        <Column><Text text="Date and Time"/></Column>
+                    </columns>
+
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <ObjectStatus
+                                    text="{trackingEvents>eventType}"
+                                    state="Information"/>
+                                <Text text="{trackingEvents>notes}"/>
+                                <Text text="{trackingEvents>performedBy}"/>
+                                <Text text="{trackingEvents>createdAt}"/>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+
+                </Table>
+
+            </VBox>
+        </content>
+
+    </Page>
+</mvc:View>

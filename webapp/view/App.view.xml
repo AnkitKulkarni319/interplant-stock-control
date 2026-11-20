@@ -1,0 +1,64 @@
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.App"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:tnt="sap.tnt">
+
+    <tnt:ToolPage id="toolPage" sideExpanded="true">
+
+        <tnt:header>
+            <tnt:ToolHeader>
+                <Button
+                    icon="sap-icon://menu2"
+                    type="Transparent"
+                    press=".onToggleSideNavigation"/>
+
+                <Title
+                    text="Warehouse Inventory and Stock Transfer"
+                    level="H2"/>
+
+                <ToolbarSpacer/>
+
+                <Text text="Store Manager" class="sapUiTinyMarginEnd"/>
+            </tnt:ToolHeader>
+        </tnt:header>
+
+        <tnt:sideContent>
+            <tnt:SideNavigation id="sideNavigation">
+                <tnt:NavigationList itemSelect=".onItemSelect">
+
+                    <tnt:NavigationListItem
+                        text="Home"
+                        icon="sap-icon://home"
+                        key="home"/>
+
+                    <tnt:NavigationListItem
+                        text="Create Transfer"
+                        icon="sap-icon://add-document"
+                        key="createTransfer"/>
+
+                    <tnt:NavigationListItem
+                        text="My Transfer Requests"
+                        icon="sap-icon://list"
+                        key="myTransferRequests"/>
+
+                    <tnt:NavigationListItem
+                        text="Transfer Approvals"
+                        icon="sap-icon://approvals"
+                        key="transferApprovals"/>
+
+                    <tnt:NavigationListItem
+                        text="Transfer Tracking"
+                        icon="sap-icon://shipping-status"
+                        key="transferTracking"/>
+
+                </tnt:NavigationList>
+            </tnt:SideNavigation>
+        </tnt:sideContent>
+
+        <tnt:mainContents>
+            <App id="app"/>
+        </tnt:mainContents>
+
+    </tnt:ToolPage>
+</mvc:View>

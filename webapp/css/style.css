@@ -1,0 +1,50 @@
+
+/* General application spacing */
+.sapUiContentPadding {
+    padding: 1rem;
+}
+
+.sapUiMediumMargin {
+    margin: 1rem;
+}
+
+.sapUiLargeMarginTop {
+    margin-top: 2rem;
+}
+
+.sapUiMediumMarginBottom {
+    margin-bottom: 1rem;
+}
+
+.sapUiSmallMarginTop {
+    margin-top: 0.5rem;
+}
+
+.sapUiMediumMarginTop {
+    margin-top: 1rem;
+}
+
+/* Create Transfer form */
+.transferForm {
+    width: auto;
+    max-width: 650px;
+}
+
+/* Dropdown controls */
+.transferSelect {
+    display: block;
+    width: 100%;
+    min-height: 2.5rem;
+    margin-top: 0.25rem;
+}
+
+/* Form labels */
+.transferForm .sapMLabel {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+/* Buttons */
+.transferForm .sapMBtn {
+    margin-right: 0.5rem;
+}

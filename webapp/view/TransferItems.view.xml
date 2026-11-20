@@ -1,0 +1,154 @@
+
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.TransferItems"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page
+        title="Transfer Items"
+        showNavButton="true"
+        navButtonPress=".onBack">
+
+        <content>
+            <VBox class="sapUiSmallMargin">
+
+                <Title
+                    text="Add Material to Transfer"
+                    level="H3"
+                    class="sapUiSmallMarginBottom"/>
+
+                <Label
+                    text="Material"
+                    required="true"/>
+
+                <Select
+                    id="materialSelect"
+                    width="100%"
+                    change=".onMaterialChange"
+                    forceSelection="false"/>
+
+                <Label
+                    text="Batch Number"
+                    class="sapUiSmallMarginTop"
+                    required="true"/>
+
+                <Select
+                    id="batchNumber"
+                    width="100%"
+                    change=".onBatchChange"
+                    forceSelection="false"/>
+
+                <Label
+                    text="Available Quantity"
+                    class="sapUiSmallMarginTop"/>
+
+                <ObjectNumber
+                    id="availableQty"
+                    number="0.000"
+                    unit=""/>
+
+                <Label
+                    text="Requested Quantity"
+                    class="sapUiSmallMarginTop"
+                    required="true"/>
+
+                <Input
+                    id="requestedQty"
+                    type="Number"
+                    placeholder="Enter requested quantity"
+                    width="100%"/>
+
+                <Button
+                    id="addItemButton"
+                    text="Add Item"
+                    type="Emphasized"
+                    icon="sap-icon://add"
+                    press=".onAddItem"
+                    class="sapUiSmallMarginTop"/>
+
+                <Toolbar
+                    class="sapUiMediumMarginTop sapUiSmallMarginBottom">
+
+                    <Title
+                        text="Existing Transfer Items"
+                        level="H3"/>
+
+                </Toolbar>
+
+                <Table
+                    id="itemsTable"
+                    items="{items}"
+                    growing="true"
+                    growingScrollToLoad="true"
+                    noDataText="No transfer items added yet">
+
+                    <columns>
+
+                        <Column>
+                            <Text text="Material"/>
+                        </Column>
+
+                        <Column>
+                            <Text text="Batch Number"/>
+                        </Column>
+
+                        <Column hAlign="End">
+                            <Text text="Requested Qty"/>
+                        </Column>
+
+                        <Column hAlign="End">
+                            <Text text="Dispatched Qty"/>
+                        </Column>
+
+                        <Column hAlign="End">
+                            <Text text="Received Qty"/>
+                        </Column>
+
+                    </columns>
+
+                    <items>
+                        <ColumnListItem>
+
+                            <cells>
+
+                                <Text text="{material_ID}"/>
+
+                                <Text text="{batchNumber}"/>
+
+                                <ObjectNumber
+                                    number="{requestedQty}"/>
+
+                                <ObjectNumber
+                                    number="{dispatchedQty}"/>
+
+                                <ObjectNumber
+                                    number="{receivedQty}"/>
+
+                            </cells>
+
+                        </ColumnListItem>
+                    </items>
+
+                </Table>
+
+                <Toolbar class="sapUiMediumMarginTop">
+
+                    <ToolbarSpacer/>
+
+                    <Button
+                        id="submitButton"
+                        text="Submit Transfer"
+                        type="Accept"
+                        icon="sap-icon://paper-plane"
+                        press=".onSubmitTransfer"
+                        visible="false"
+                        enabled="false"/>
+
+                </Toolbar>
+
+            </VBox>
+        </content>
+
+    </Page>
+
+</mvc:View>

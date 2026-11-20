@@ -1,0 +1,210 @@
+
+{
+  "_version": "1.90.0",
+  "sap.app": {
+    "id": "interplant.stock.storemanager.storemanager",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "title": "Store Manager",
+    "description": "Warehouse Inventory and Inter-Plant Stock Transfer",
+    "resources": "resources.json",
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/v4/transfer/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      },
+      "inventoryService": {
+        "uri": "/odata/v4/inventory/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "StoreManager-display": {
+          "semanticObject": "StoreManager",
+          "action": "display",
+          "title": "Store Manager",
+          "subTitle": "Warehouse Inventory and Stock Transfer",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": false,
+    "dependencies": {
+      "minUI5Version": "1.154.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.tnt": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "interplant.stock.storemanager.storemanager.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      },
+      "inventory": {
+        "dataSource": "inventoryService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "rootView": {
+      "viewName": "interplant.stock.storemanager.storemanager.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "async": true,
+        "viewPath": "interplant.stock.storemanager.storemanager.view",
+        "controlId": "app",
+        "controlAggregation": "pages",
+        "clearControlAggregation": false
+      },
+      "routes": [
+        {
+          "pattern": "",
+          "name": "StoreManagerHome",
+          "target": "StoreManagerHome"
+        },
+        {
+          "pattern": "createTransfer",
+          "name": "CreateTransfer",
+          "target": "CreateTransfer"
+        },
+        {
+          "pattern": "myTransferRequests",
+          "name": "MyTransferRequests",
+          "target": "MyTransferRequests"
+        },
+        {
+          "pattern": "transferItems/{transferId}",
+          "name": "TransferItems",
+          "target": "TransferItems"
+        },
+        {
+          "pattern": "transferApprovals",
+          "name": "TransferApprovals",
+          "target": "TransferApprovals"
+        },
+        {
+          "pattern": "transferTracking",
+          "name": "TransferTracking",
+          "target": "TransferTracking"
+        },
+
+{
+    "pattern": "transferApprovalDetails/{transferID}",
+    "name": "TransferApprovalDetails",
+    "target": "TransferApprovalDetails"
+},
+{
+    "pattern": "transferTrackingDetails/{transferID}",
+    "name": "TransferTrackingDetails",
+    "target": "TransferTrackingDetails"
+}
+
+      ],
+      "targets": {
+        "StoreManagerHome": {
+          "viewName": "StoreManagerHome",
+          "viewId": "StoreManagerHome"
+        },
+        "CreateTransfer": {
+          "viewName": "CreateTransfer",
+          "viewId": "CreateTransfer"
+        },
+        "MyTransferRequests": {
+          "viewName": "MyTransferRequests",
+          "viewId": "MyTransferRequests"
+        },
+        "TransferItems": {
+          "viewName": "TransferItems",
+          "viewId": "TransferItems"
+        },
+        "TransferApprovals": {
+          "viewName": "TransferApprovals",
+          "viewId": "TransferApprovals"
+        },
+        "TransferTracking": {
+          "viewName": "TransferTracking",
+          "viewId": "TransferTracking"
+        },
+
+"TransferApprovalDetails": {
+    "viewName": "TransferApprovalDetails",
+    "viewId": "TransferApprovalDetails"
+},
+"TransferTrackingDetails": {
+    "viewName": "TransferTrackingDetails",
+    "viewId": "TransferTrackingDetails"
+}
+
+      }
+    }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "interplantstockstoremanagerstoremanager"
+  }
+}

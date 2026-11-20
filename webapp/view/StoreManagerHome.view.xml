@@ -1,0 +1,60 @@
+<mvc:View
+    controllerName="interplant.stock.storemanager.storemanager.controller.StoreManagerHome"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+
+    <Page title="Store Manager Dashboard">
+
+        <content>
+            <VBox class="sapUiMediumMargin">
+
+                <Title
+                    text="Welcome to Store Manager"
+                    level="H1"/>
+
+                <Text
+                    text="Manage warehouse inventory and inter-plant stock transfers."
+                    class="sapUiSmallMarginTop sapUiMediumMarginBottom"/>
+
+                <Title
+                    text="Warehouse Operations"
+                    level="H2"
+                    class="sapUiMediumMarginBottom"/>
+
+                <List>
+
+                    <StandardListItem
+                        title="Create Transfer"
+                        description="Create a new inter-plant stock transfer request"
+                        icon="sap-icon://add-document"
+                        type="Navigation"
+                        press=".onCreateTransfer"/>
+
+                    <StandardListItem
+                        title="My Transfer Requests"
+                        description="View and manage your transfer requests"
+                        icon="sap-icon://list"
+                        type="Navigation"
+                        press=".onMyRequests"/>
+
+                    <StandardListItem
+                        title="Transfer Approvals"
+                        description="Review pending transfer requests"
+                        icon="sap-icon://approvals"
+                        type="Navigation"
+                        press=".onApprovals"/>
+
+                    <StandardListItem
+                        title="Transfer Tracking"
+                        description="Track transfer progress and status"
+                        icon="sap-icon://shipping-status"
+                        type="Navigation"
+                        press=".onTracking"/>
+
+                </List>
+
+            </VBox>
+        </content>
+
+    </Page>
+</mvc:View>
